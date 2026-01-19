@@ -4,498 +4,927 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>STC Hockey Tracker</title>
-    <!-- PWA Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="STC Hockey">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1e3a8a">
+    <meta name="application-name" content="STC Hockey">
+    <meta name="msapplication-TileColor" content="#1e3a8a">
+    <meta name="msapplication-tap-highlight" content="no">
     <link rel="apple-touch-icon" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
-    
-    <!-- PWA Manifest -->
-    <link rel="manifest" href='data:application/json,{"name":"STC Hockey Tracker","short_name":"STCHockey","start_url":".","display":"standalone","background_color":"#f8fafc","theme_color":"#1e3a8a","icons":[{"src":"https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png","sizes":"192x192","type":"image/png"}]}'>
-
-    <!-- Tailwind CSS -->
+    <link rel="icon" type="image/png" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
+    <link rel="manifest" href='data:application/json;charset=utf-8,%7B%22name%22%3A%22STC%20Hockey%20Tracker%22%2C%22short_name%22%3A%22STC%20Hockey%22%2C%22description%22%3A%22Track%20your%20hockey%20training%20and%20performance%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22fullscreen%22%2C%22display_override%22%3A%5B%22fullscreen%22%2C%22standalone%22%2C%22minimal-ui%22%5D%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%231e3a8a%22%2C%22categories%22%3A%5B%22sports%22%2C%22fitness%22%5D%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D'>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React and Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+        #root { height: 100%; overflow: hidden; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         input[type="range"] { -webkit-appearance: none; background: transparent; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #1e3a8a; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
         .animate-in { animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .nav-btn-active { @apply bg-blue-900 text-white shadow-md; }
+        .main-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
+    <script>
+        (function() {
+            var h = React.createElement;
+            var useState = React.useState;
+            var useMemo = React.useMemo;
+            var useEffect = React.useEffect;
+            var useRef = React.useRef;
 
-    <script type="text/babel">
-        const { useState, useMemo, useEffect, useRef } = React;
-
-        /**
-         * NOTE: In certain restricted environments (like iframes or specific sandbox origins), 
-         * Service Workers and Blob-based SW registration might be blocked by the browser. 
-         * We wrap this in a try-catch and check for secure context.
-         */
-        if ('serviceWorker' in navigator && window.isSecureContext) {
-            try {
-                // We use a Data URI instead of a Blob URL to avoid the protocol error in some sandboxes
-                const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));`;
-                const swUrl = 'data:text/javascript;base64,' + btoa(swCode);
-                
-                // Note: Standard browser security typically requires Service Workers to be served from the same origin 
-                // and via HTTPS. If this still fails in the preview sandbox, the app functions will remain intact.
-                navigator.serviceWorker.register(swUrl).catch(err => {
-                    console.warn("ServiceWorker registration skipped (Sandbox limitation):", err.message);
-                });
-            } catch (e) {
-                console.warn("ServiceWorker setup failed:", e);
-            }
-        }
-
-        // --- ICON COMPONENT ---
-        const Icon = ({ name, className = "w-4 h-4" }) => {
-            const [svg, setSvg] = useState('');
-            useEffect(() => {
-                const icon = lucide.icons[name];
-                if (icon) {
-                    const svgString = icon.map(tag => {
-                        const [tagName, attrs] = tag;
-                        const attrString = Object.entries(attrs).map(([k, v]) => `${k}="${v}"`).join(' ');
-                        return `<${tagName} ${attrString}></${tagName}>`;
-                    }).join('');
-                    setSvg(svgString);
-                }
-            }, [name]);
-            return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: svg }} />;
-        };
-
-        // --- CONSTANTS ---
-        const LOGO_URL = "https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png";
-        const STORAGE_KEY_LOGS = "stc_hockey_logs_vfinal";
-        const STORAGE_KEY_PROFILE = "stc_hockey_profile_vfinal";
-        
-        const EXERCISE_TYPES = [
-            { id: 'match', name: 'Match', icon: '🏑' },
-            { id: 'drills', name: 'Drills', icon: '🎯' },
-            { id: 'fitness', name: 'Fitness', icon: '🏃' },
-            { id: 'strength', name: 'Strength', icon: '💪' },
-            { id: 'recovery', name: 'Recovery', icon: '🧘' },
-            { id: 'rest', name: 'Rest', icon: '😴' }
-        ];
-
-        const INTENSITY_LEVELS = [
-            { id: 'low', name: 'Low' },
-            { id: 'moderate', name: 'Med' },
-            { id: 'high', name: 'High' }
-        ];
-
-        const getWeekIdentifier = (date) => {
-            const d = new Date(date);
-            const day = d.getDay();
-            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-            return new Date(d.setDate(diff)).toISOString().split('T')[0];
-        };
-
-        const LogItem = ({ log, onDelete }) => {
-            const type = EXERCISE_TYPES.find(t => t.id === log.type) || {};
-            return (
-                <div className="bg-white p-3 rounded-xl border flex items-center justify-between animate-in">
-                    <div className="flex items-center gap-3">
-                        <span className="text-lg">{type.icon}</span>
-                        <div>
-                            <p className="font-bold text-xs">{type.name}</p>
-                            <p className="text-[10px] font-medium text-slate-400">
-                                {log.date} • {log.duration}m • {log.intensity}
-                            </p>
-                        </div>
-                    </div>
-                    <button onClick={() => onDelete(log.id)} className="text-slate-300 hover:text-rose-500 p-1">
-                        <Icon name="Trash2" className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-            );
-        };
-
-        function App() {
-            const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]'));
-            const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{"name":"STC Athlete","position":"Midfielder","jerseyNumber":"07","weeklyGoal":300}'));
-            const [activeTab, setActiveTab] = useState('dashboard');
-            const [showAddModal, setShowAddModal] = useState(false);
-            const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-            const [viewDate, setViewDate] = useState(new Date());
-            const [statusMsg, setStatusMsg] = useState(null);
-            const [newLog, setNewLog] = useState({ type: 'drills', duration: '', intensity: 'moderate', date: new Date().toISOString().split('T')[0] });
-            const fileInputRef = useRef(null);
-
-            // PWA Install Logic
-            const [deferredPrompt, setDeferredPrompt] = useState(null);
-            const [showInstallBanner, setShowInstallBanner] = useState(false);
-            const [isIOS, setIsIOS] = useState(false);
-
-            useEffect(() => {
-                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-                const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                setIsIOS(iOS);
-
-                if (!isStandalone) {
-                    const handler = (e) => {
-                        e.preventDefault();
-                        setDeferredPrompt(e);
-                        setShowInstallBanner(true);
-                    };
-                    window.addEventListener('beforeinstallprompt', handler);
-                    if (iOS) setShowInstallBanner(true);
-                    return () => window.removeEventListener('beforeinstallprompt', handler);
-                }
-            }, []);
-
-            const handleInstallClick = async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') {
-                        setDeferredPrompt(null);
-                        setShowInstallBanner(false);
-                    }
-                } else if (isIOS) {
-                    notify("iOS: Tap 'Share' then 'Add to Home Screen'");
-                } else {
-                    notify("Use browser menu to 'Install' or 'Add to Home Screen'");
-                }
-            };
-
-            useEffect(() => { localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs)); }, [logs]);
-            useEffect(() => { localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile)); }, [profile]);
-
-            const notify = (msg) => {
-                setStatusMsg(msg);
-                setTimeout(() => setStatusMsg(null), 2500);
-            };
-
-            const addLog = (e) => {
-                e.preventDefault();
-                const durationVal = newLog.type === 'rest' ? 0 : parseInt(newLog.duration || 0);
-                if (newLog.type !== 'rest' && durationVal <= 0) {
-                    notify('Invalid duration');
-                    return;
-                }
-                const entry = { id: Date.now(), ...newLog, duration: durationVal };
-                setLogs([entry, ...logs].sort((a, b) => new Date(b.date) - new Date(a.date)));
-                setShowAddModal(false);
-                setNewLog({ ...newLog, duration: '' });
-                notify('Logged!');
-            };
-
-            const deleteLog = (id) => {
-                setLogs(logs.filter(l => l.id !== id));
-                notify('Deleted');
-            };
-
-            const exportData = () => {
-                const dataStr = JSON.stringify({ logs, profile }, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', `stc-hockey-data.json`);
-                linkElement.click();
-            };
-
-            const importData = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
+            // Safe storage wrapper for iframe/PWA compatibility
+            var storageKey = 'localStorage';
+            var safeStorage = {
+                _cache: {},
+                getItem: function(key) {
                     try {
-                        const json = JSON.parse(e.target.result);
-                        if (json.logs) setLogs(json.logs);
-                        if (json.profile) setProfile(json.profile);
-                        notify('Restored!');
-                    } catch (err) { notify('Error reading file'); }
-                };
-                reader.readAsText(file);
-            };
-
-            const resetAllData = () => {
-                if (window.confirm("Delete all history?")) {
-                    setLogs([]);
-                    notify('Reset');
+                        var store = window[storageKey];
+                        return store ? store.getItem(key) : this._cache[key] || null;
+                    } catch (e) {
+                        return this._cache[key] || null;
+                    }
+                },
+                setItem: function(key, value) {
+                    try {
+                        var store = window[storageKey];
+                        if (store) store.setItem(key, value);
+                        this._cache[key] = value;
+                    } catch (e) {
+                        this._cache[key] = value;
+                    }
                 }
             };
 
-            const recoveryInsight = useMemo(() => {
-                const last7Days = logs.filter(l => (new Date() - new Date(l.date)) / (1000 * 3600 * 24) <= 7);
-                const highIntensity = last7Days.filter(l => l.intensity === 'high').length;
-                const restDays = last7Days.filter(l => l.type === 'rest').length;
-                if (highIntensity >= 3 && restDays < 1) return { text: "Strain High: Rest recommended.", color: "text-rose-600 bg-rose-50", icon: "AlertCircle" };
-                if (restDays >= 1) return { text: "Balanced: Recovery is optimal.", color: "text-emerald-600 bg-emerald-50", icon: "Check" };
-                return { text: "Log rest days to track recovery.", color: "text-blue-600 bg-blue-50", icon: "Info" };
-            }, [logs]);
+            var LOGO_URL = "https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png";
+            var STORAGE_KEY_LOGS = "stc_hockey_logs_vfinal";
+            var STORAGE_KEY_PROFILE = "stc_hockey_profile_vfinal";
 
-            const weeklyProgress = useMemo(() => {
-                const currentWeek = getWeekIdentifier(new Date());
-                const mins = logs.filter(l => getWeekIdentifier(l.date) === currentWeek).reduce((a,c) => a + c.duration, 0);
-                return { mins, percent: Math.min(100, (mins / profile.weeklyGoal) * 100) };
-            }, [logs, profile.weeklyGoal]);
+            var EXERCISE_TYPES = [
+                { id: 'match', name: 'Match', icon: '🏑' },
+                { id: 'drills', name: 'Drills', icon: '🎯' },
+                { id: 'fitness', name: 'Fitness', icon: '🏃' },
+                { id: 'strength', name: 'Strength', icon: '💪' },
+                { id: 'recovery', name: 'Recovery', icon: '🧘' },
+                { id: 'rest', name: 'Rest', icon: '😴' }
+            ];
 
-            return (
-                <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto relative overflow-x-hidden pb-24">
-                    <header className="bg-white border-b px-4 py-3 sticky top-0 z-50 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <img src={LOGO_URL} className="w-6 h-6 object-contain" />
-                            <h1 className="font-extrabold text-blue-900 text-sm tracking-tight">STC HOCKEY</h1>
-                        </div>
-                        {statusMsg && <span className="text-[9px] font-bold uppercase text-blue-600 animate-pulse text-right max-w-[150px] leading-tight">{statusMsg}</span>}
-                    </header>
+            var INTENSITY_LEVELS = [
+                { id: 'low', name: 'Low' },
+                { id: 'moderate', name: 'Med' },
+                { id: 'high', name: 'High' }
+            ];
 
-                    {showInstallBanner && (
-                        <div className="m-4 bg-blue-900 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg animate-in">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-white/20 p-2 rounded-xl"><Icon name="Smartphone" /></div>
-                                <div>
-                                    <p className="font-bold text-xs">Install App</p>
-                                    <p className="text-[10px] opacity-80">Access tracker from your home screen</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setShowInstallBanner(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase">Maybe Later</button>
-                                <button onClick={handleInstallClick} className="bg-white text-blue-900 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase">Install</button>
-                            </div>
-                        </div>
-                    )}
+            function getWeekIdentifier(date) {
+                var d = new Date(date);
+                var day = d.getDay();
+                var diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                return new Date(d.setDate(diff)).toISOString().split('T')[0];
+            }
 
-                    <main className="flex-1 p-4 space-y-5">
-                        {activeTab === 'dashboard' && (
-                            <div className="space-y-5 animate-in">
-                                <div className="bg-blue-900 rounded-2xl p-5 text-white shadow-lg">
-                                    <div className="relative z-10">
-                                        <p className="text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5">Hockey Player</p>
-                                        <h2 className="text-xl font-extrabold">{profile.name}</h2>
-                                        <div className="flex gap-2 mt-3">
-                                            <div className="bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">{profile.position}</div>
-                                            <div className="bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">#{profile.jerseyNumber}</div>
-                                        </div>
-                                    </div>
-                                </div>
+            function Icon(props) {
+                var name = props.name;
+                var className = props.className || "w-4 h-4";
+                var svgState = useState('');
+                var svg = svgState[0];
+                var setSvg = svgState[1];
 
-                                <div className={`p-3 rounded-xl flex gap-2.5 items-center border border-transparent ${recoveryInsight.color}`}>
-                                    <Icon name={recoveryInsight.icon} className="w-4 h-4" />
-                                    <p className="text-[11px] font-bold">{recoveryInsight.text}</p>
-                                </div>
+                useEffect(function() {
+                    var icon = lucide.icons[name];
+                    if (icon) {
+                        var svgString = icon.map(function(tag) {
+                            var tagName = tag[0];
+                            var attrs = tag[1];
+                            var attrString = Object.entries(attrs).map(function(kv) {
+                                return kv[0] + '="' + kv[1] + '"';
+                            }).join(' ');
+                            return '<' + tagName + ' ' + attrString + '></' + tagName + '>';
+                        }).join('');
+                        setSvg(svgString);
+                    }
+                }, [name]);
 
-                                <div className="space-y-2.5">
-                                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Recent Activity</h3>
-                                    {logs.slice(0, 3).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
-                                    {logs.length === 0 && <p className="text-center py-4 text-slate-300 text-xs italic">No activity yet</p>}
-                                </div>
-                            </div>
-                        )}
+                return h('svg', {
+                    xmlns: "http://www.w3.org/2000/svg",
+                    viewBox: "0 0 24 24",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "2.5",
+                    strokeLinecap: "round",
+                    strokeLinejoin: "round",
+                    className: className,
+                    dangerouslySetInnerHTML: { __html: svg }
+                });
+            }
 
-                        {activeTab === 'history' && (
-                            <div className="space-y-4 animate-in">
-                                <div className="bg-white p-4 rounded-2xl border shadow-sm">
-                                    <div className="flex justify-between items-center mb-3 px-1">
-                                        <h3 className="font-extrabold text-xs uppercase text-slate-500">{viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                                        <div className="flex gap-1">
-                                            <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()-1)))} className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors"><Icon name="ChevronLeft" /></button>
-                                            <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()+1)))} className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors"><Icon name="ChevronRight" /></button>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-7 gap-0.5 text-center">
-                                        {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[9px] font-bold text-slate-300 py-1">{d}</span>)}
-                                        {Array.from({ length: new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay() }).map((_, i) => <div key={`empty-${i}`} />)}
-                                        {Array.from({ length: new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
-                                            const day = i + 1;
-                                            const dStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                                            const hasLog = logs.some(l => l.date === dStr);
-                                            const isSelected = selectedDate === dStr;
-                                            const isToday = dStr === new Date().toISOString().split('T')[0];
-                                            return (
-                                                <button key={day} onClick={()=>setSelectedDate(dStr)} className={`aspect-square rounded-lg text-xs font-bold flex flex-col items-center justify-center relative ${isSelected ? 'bg-blue-900 text-white' : isToday ? 'text-blue-600 bg-blue-50' : 'text-slate-700 hover:bg-slate-50'}`}>
-                                                    {day}
-                                                    {hasLog && <div className={`w-1 h-1 rounded-full absolute bottom-1 ${isSelected ? 'bg-white' : 'bg-blue-400'}`} />}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase px-1">Activity for {selectedDate}</h4>
-                                    {logs.filter(l => l.date === selectedDate).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
-                                    {logs.filter(l => l.date === selectedDate).length === 0 && <p className="text-center py-4 text-slate-300 text-[11px] italic">Rest day</p>}
-                                </div>
-                            </div>
-                        )}
+            function ConfirmDialog(props) {
+                return h('div', { className: "fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[200] flex items-center justify-center p-4" },
+                    h('div', { className: "bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 animate-in shadow-xl" },
+                        h('div', { className: "flex items-center gap-3" },
+                            h('div', { className: "w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center" },
+                                h(Icon, { name: "AlertTriangle", className: "w-5 h-5 text-rose-600" })
+                            ),
+                            h('h3', { className: "text-sm font-bold text-slate-800" }, "Confirm Action")
+                        ),
+                        h('p', { className: "text-sm text-slate-600" }, props.message),
+                        h('div', { className: "flex gap-3 pt-2" },
+                            h('button', {
+                                onClick: props.onCancel,
+                                className: "flex-1 p-3 rounded-xl font-bold text-xs uppercase text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors"
+                            }, "Cancel"),
+                            h('button', {
+                                onClick: props.onConfirm,
+                                className: "flex-1 p-3 rounded-xl font-bold text-xs uppercase text-white bg-rose-500 hover:bg-rose-600 transition-colors"
+                            }, "Delete")
+                        )
+                    )
+                );
+            }
 
-                        {activeTab === 'analysis' && (
-                            <div className="space-y-5 animate-in">
-                                <div className="bg-white p-6 rounded-3xl border shadow-sm text-center">
-                                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Weekly Goal Progress</h3>
-                                    <div className="relative w-28 h-28 mx-auto flex items-center justify-center mb-4">
-                                        <svg className="w-full h-full -rotate-90">
-                                            <circle cx="56" cy="56" r="50" stroke="#f1f5f9" strokeWidth="8" fill="none" />
-                                            <circle cx="56" cy="56" r="50" stroke="#1e3a8a" strokeWidth="8" fill="none" strokeDasharray="314.15" strokeDashoffset={314.15 - (314.15 * weeklyProgress.percent) / 100} strokeLinecap="round" className="transition-all duration-700" />
-                                        </svg>
-                                        <div className="absolute text-xl font-black text-blue-900">{Math.round(weeklyProgress.percent)}%</div>
-                                    </div>
-                                    <p className="text-lg font-extrabold text-blue-900">{weeklyProgress.mins} / {profile.weeklyGoal}m</p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Minutes logged this week</p>
-                                </div>
+            function LogItem(props) {
+                var log = props.log;
+                var onDelete = props.onDelete;
+                var type = EXERCISE_TYPES.find(function(t) { return t.id === log.type; }) || {};
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-white p-3.5 rounded-2xl border shadow-sm text-center">
-                                        <p className="text-[9px] font-bold text-slate-400 uppercase">Sessions</p>
-                                        <p className="text-lg font-black text-blue-900">{logs.length}</p>
-                                    </div>
-                                    <div className="bg-white p-3.5 rounded-2xl border shadow-sm text-center">
-                                        <p className="text-[9px] font-bold text-slate-400 uppercase">Avg Mins</p>
-                                        <p className="text-lg font-black text-blue-900">
-                                            {logs.length ? Math.round(logs.reduce((a,c)=>a+c.duration,0)/logs.length) : 0}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                return h('div', { className: "bg-white p-3 rounded-xl border flex items-center justify-between animate-in" },
+                    h('div', { className: "flex items-center gap-3" },
+                        h('span', { className: "text-lg" }, type.icon),
+                        h('div', null,
+                            h('p', { className: "font-bold text-xs" }, type.name),
+                            h('p', { className: "text-[10px] font-medium text-slate-400" },
+                                log.date + ' • ' + log.duration + 'm • ' + log.intensity
+                            )
+                        )
+                    ),
+                    h('button', {
+                        onClick: function() { onDelete(log.id); },
+                        className: "text-slate-300 hover:text-rose-500 p-1"
+                    },
+                        h(Icon, { name: "Trash2", className: "w-3.5 h-3.5" })
+                    )
+                );
+            }
 
-                        {activeTab === 'profile' && (
-                            <div className="space-y-5 animate-in pb-4">
-                                <section className="space-y-3">
-                                    <h2 className="text-sm font-black px-1 uppercase tracking-wider text-slate-500">Athlete Profile</h2>
-                                    <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
-                                        <div className="space-y-1">
-                                            <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Full Name</label>
-                                            <input className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100 focus:ring-blue-900" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Position</label>
-                                                <select className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={profile.position} onChange={e=>setProfile({...profile, position: e.target.value})}>
-                                                    {['Forward','Midfielder','Defender','Goalkeeper','Utility'].map(p => <option key={p} value={p}>{p}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Jersey #</label>
-                                                <input className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={profile.jerseyNumber} onChange={e=>setProfile({...profile, jerseyNumber: e.target.value})} />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2 pt-1">
-                                            <div className="flex justify-between items-center px-1">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Weekly Goal</label>
-                                                <span className="text-xs font-black text-blue-900">{profile.weeklyGoal}m</span>
-                                            </div>
-                                            <input type="range" min="60" max="600" step="30" value={profile.weeklyGoal} onChange={e=>setProfile({...profile, weeklyGoal: parseInt(e.target.value)})} className="w-full" />
-                                        </div>
-                                    </div>
-                                </section>
+            function NavBtn(props) {
+                return h('button', {
+                    onClick: props.onClick,
+                    className: "p-2.5 rounded-xl transition-all " + (props.active ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-300 hover:text-blue-900')
+                },
+                    h(Icon, { name: props.icon, className: "w-5 h-5" })
+                );
+            }
 
-                                <section className="space-y-3">
-                                    <h2 className="text-sm font-black px-1 uppercase tracking-wider text-slate-500">App Settings</h2>
-                                    <div className="bg-white p-3 rounded-2xl border space-y-1 shadow-sm">
-                                        {(!window.matchMedia('(display-mode: standalone)').matches) && (
-                                            <button onClick={handleInstallClick} className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-blue-900">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><Icon name="Smartphone" /></div>
-                                                <div className="text-left flex-1">
-                                                    <p className="font-bold text-xs">Install App</p>
-                                                    <p className="text-[9px] text-slate-400">Add to home screen</p>
-                                                </div>
-                                                <Icon name="Plus" className="w-3 h-3" />
-                                            </button>
-                                        )}
-                                        <button onClick={exportData} className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                                            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-600 flex items-center justify-center"><Icon name="Download" /></div>
-                                            <div className="text-left flex-1">
-                                                <p className="font-bold text-xs">Export Backup</p>
-                                                <p className="text-[9px] text-slate-400">Download .json data</p>
-                                            </div>
-                                            <Icon name="ChevronRight" className="text-slate-300 w-3 h-3" />
-                                        </button>
-                                        <button onClick={() => fileInputRef.current.click()} className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors">
-                                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-900 flex items-center justify-center"><Icon name="Upload" /></div>
-                                            <div className="text-left flex-1">
-                                                <p className="font-bold text-xs">Restore Backup</p>
-                                                <p className="text-[9px] text-slate-400">Upload .json data</p>
-                                            </div>
-                                            <Icon name="ChevronRight" className="text-slate-300 w-3 h-3" />
-                                        </button>
-                                        <input type="file" ref={fileInputRef} onChange={importData} accept=".json" className="hidden" />
-                                        <div className="pt-2 px-1">
-                                            <button onClick={resetAllData} className="w-full p-2.5 text-rose-500 rounded-xl font-bold text-[10px] uppercase hover:bg-rose-50 transition-colors border border-rose-100">
-                                                Wipe Local Storage
-                                            </button>
-                                        </div>
-                                    </div>
-                                </section>
-                                <p className="text-center text-[9px] font-bold text-slate-300 uppercase pb-6">Version 2.3.1-PWA</p>
-                            </div>
-                        )}
-                    </main>
+            function App() {
+                var logsState = useState(function() {
+                    return JSON.parse(safeStorage.getItem(STORAGE_KEY_LOGS) || '[]');
+                });
+                var logs = logsState[0];
+                var setLogs = logsState[1];
 
-                    <nav className="fixed bottom-5 left-4 right-4 max-w-md mx-auto bg-white/95 backdrop-blur-sm border rounded-2xl px-2 py-1.5 flex justify-around items-center shadow-lg z-[60]">
-                        <NavBtn active={activeTab === 'dashboard'} onClick={()=>setActiveTab('dashboard')} icon="Home" />
-                        <NavBtn active={activeTab === 'history'} onClick={()=>setActiveTab('history')} icon="Calendar" />
-                        <button onClick={()=>setShowAddModal(true)} className="bg-blue-900 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all mx-1"><Icon name="Plus" className="w-5 h-5" /></button>
-                        <NavBtn active={activeTab === 'analysis'} onClick={()=>setActiveTab('analysis')} icon="PieChart" />
-                        <NavBtn active={activeTab === 'profile'} onClick={()=>setActiveTab('profile')} icon="Settings" />
-                    </nav>
+                var profileState = useState(function() {
+                    return JSON.parse(safeStorage.getItem(STORAGE_KEY_PROFILE) || '{"name":"STC Athlete","position":"Midfielder","jerseyNumber":"07","weeklyGoal":300}');
+                });
+                var profile = profileState[0];
+                var setProfile = profileState[1];
 
-                    {showAddModal && (
-                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[100] flex items-end sm:items-center justify-center p-4">
-                            <div className="bg-white w-full max-sm:rounded-t-3xl sm:rounded-3xl p-6 space-y-4 animate-in">
-                                <div className="flex justify-between items-center">
-                                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">Log Activity</h2>
-                                    <button onClick={()=>setShowAddModal(false)} className="p-1 text-slate-300"><Icon name="X" /></button>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {EXERCISE_TYPES.map(t => (
-                                        <button key={t.id} onClick={()=>setNewLog({...newLog, type:t.id})} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${newLog.type === t.id ? 'border-blue-900 bg-blue-50 text-blue-900' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
-                                            <span className="text-base">{t.icon}</span>
-                                            <span className="text-[9px] font-bold uppercase">{t.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="space-y-3">
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Date</label>
-                                        <input type="date" className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={newLog.date} onChange={e=>setNewLog({...newLog, date: e.target.value})} />
-                                    </div>
-                                    {newLog.type !== 'rest' && (
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Duration (Mins)</label>
-                                                <input type="number" className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" placeholder="0" value={newLog.duration} onChange={e=>setNewLog({...newLog, duration:e.target.value})} />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Intensity</label>
-                                                <select className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={newLog.intensity} onChange={e=>setNewLog({...newLog, intensity:e.target.value})}>
-                                                    {INTENSITY_LEVELS.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <button onClick={addLog} className="w-full bg-blue-900 text-white p-3.5 rounded-xl font-black shadow-lg uppercase text-[11px] tracking-widest mt-2 active:scale-95 transition-transform">Save Activity</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
+                var tabState = useState('dashboard');
+                var activeTab = tabState[0];
+                var setActiveTab = tabState[1];
 
-        const NavBtn = ({ active, onClick, icon }) => (
-            <button onClick={onClick} className={`p-2.5 rounded-xl transition-all ${active ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-300 hover:text-blue-900'}`}>
-                <Icon name={icon} className="w-5 h-5" />
-            </button>
-        );
+                var modalState = useState(false);
+                var showAddModal = modalState[0];
+                var setShowAddModal = modalState[1];
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+                var selectedDateState = useState(new Date().toISOString().split('T')[0]);
+                var selectedDate = selectedDateState[0];
+                var setSelectedDate = selectedDateState[1];
+
+                var viewDateState = useState(new Date());
+                var viewDate = viewDateState[0];
+                var setViewDate = viewDateState[1];
+
+                var statusState = useState(null);
+                var statusMsg = statusState[0];
+                var setStatusMsg = statusState[1];
+
+                var newLogState = useState({
+                    type: 'drills',
+                    duration: '',
+                    intensity: 'moderate',
+                    date: new Date().toISOString().split('T')[0]
+                });
+                var newLog = newLogState[0];
+                var setNewLog = newLogState[1];
+
+                var fileInputRef = useRef(null);
+
+                var confirmState = useState(null);
+                var confirmDialog = confirmState[0];
+                var setConfirmDialog = confirmState[1];
+
+                var expandedMonthsState = useState({});
+                var expandedMonths = expandedMonthsState[0];
+                var setExpandedMonths = expandedMonthsState[1];
+
+                var installState = useState(null);
+                var deferredPrompt = installState[0];
+                var setDeferredPrompt = installState[1];
+
+                var bannerState = useState(false);
+                var showInstallBanner = bannerState[0];
+                var setShowInstallBanner = bannerState[1];
+
+                var iosState = useState(false);
+                var isIOS = iosState[0];
+                var setIsIOS = iosState[1];
+
+                var standaloneState = useState(false);
+                var isStandalone = standaloneState[0];
+                var setIsStandalone = standaloneState[1];
+
+                useEffect(function() {
+                    var standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                                     window.matchMedia('(display-mode: fullscreen)').matches ||
+                                     window.navigator.standalone === true;
+                    setIsStandalone(standalone);
+
+                    var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                    setIsIOS(iOS);
+
+                    if (!standalone) {
+                        var handler = function(e) {
+                            e.preventDefault();
+                            setDeferredPrompt(e);
+                            setShowInstallBanner(true);
+                        };
+                        window.addEventListener('beforeinstallprompt', handler);
+                        if (iOS) setShowInstallBanner(true);
+                        return function() { window.removeEventListener('beforeinstallprompt', handler); };
+                    }
+                }, []);
+
+                function handleInstallClick() {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        deferredPrompt.userChoice.then(function(result) {
+                            if (result.outcome === 'accepted') {
+                                setDeferredPrompt(null);
+                                setShowInstallBanner(false);
+                            }
+                        });
+                    } else if (isIOS) {
+                        notify("iOS: Tap 'Share' then 'Add to Home Screen'");
+                    } else {
+                        notify("Use browser menu to 'Install' or 'Add to Home Screen'");
+                    }
+                }
+
+                useEffect(function() {
+                    safeStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs));
+                }, [logs]);
+
+                useEffect(function() {
+                    safeStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
+                }, [profile]);
+
+                function notify(msg) {
+                    setStatusMsg(msg);
+                    setTimeout(function() { setStatusMsg(null); }, 2500);
+                }
+
+                function addLog(e) {
+                    e.preventDefault();
+                    var durationVal = newLog.type === 'rest' ? 0 : parseInt(newLog.duration || 0);
+                    if (newLog.type !== 'rest' && durationVal <= 0) {
+                        notify('Invalid duration');
+                        return;
+                    }
+                    var entry = Object.assign({}, newLog, { id: Date.now(), duration: durationVal });
+                    var newLogs = [entry].concat(logs).sort(function(a, b) {
+                        return new Date(b.date) - new Date(a.date);
+                    });
+                    setLogs(newLogs);
+                    setShowAddModal(false);
+                    setNewLog(Object.assign({}, newLog, { duration: '' }));
+                    notify('Logged!');
+                }
+
+                function deleteLog(id) {
+                    setLogs(logs.filter(function(l) { return l.id !== id; }));
+                    notify('Deleted');
+                }
+
+                function exportData() {
+                    var dataStr = JSON.stringify({ logs: logs, profile: profile }, null, 2);
+                    var dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                    var linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', 'stc-hockey-data.json');
+                    linkElement.click();
+                }
+
+                function importData(event) {
+                    var file = event.target.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            var json = JSON.parse(e.target.result);
+                            if (json.logs) setLogs(json.logs);
+                            if (json.profile) setProfile(json.profile);
+                            notify('Restored!');
+                        } catch (err) {
+                            notify('Error reading file');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+
+                function resetAllData() {
+                    setConfirmDialog({
+                        message: "Delete all history? This action cannot be undone.",
+                        onConfirm: function() {
+                            setLogs([]);
+                            notify('Reset');
+                            setConfirmDialog(null);
+                        },
+                        onCancel: function() { setConfirmDialog(null); }
+                    });
+                }
+
+                var recoveryInsight = useMemo(function() {
+                    var last7Days = logs.filter(function(l) {
+                        return (new Date() - new Date(l.date)) / (1000 * 3600 * 24) <= 7;
+                    });
+                    var highIntensity = last7Days.filter(function(l) { return l.intensity === 'high'; }).length;
+                    var restDays = last7Days.filter(function(l) { return l.type === 'rest'; }).length;
+                    if (highIntensity >= 3 && restDays < 1) {
+                        return { text: "Strain High: Rest recommended.", color: "text-rose-600 bg-rose-50", icon: "AlertCircle" };
+                    }
+                    if (restDays >= 1) {
+                        return { text: "Balanced: Recovery is optimal.", color: "text-emerald-600 bg-emerald-50", icon: "Check" };
+                    }
+                    return { text: "Log rest days to track recovery.", color: "text-blue-600 bg-blue-50", icon: "Info" };
+                }, [logs]);
+
+                var weeklyProgress = useMemo(function() {
+                    var currentWeek = getWeekIdentifier(new Date());
+                    var mins = logs.filter(function(l) {
+                        return getWeekIdentifier(l.date) === currentWeek;
+                    }).reduce(function(a, c) { return a + c.duration; }, 0);
+                    return { mins: mins, percent: Math.min(100, (mins / profile.weeklyGoal) * 100) };
+                }, [logs, profile.weeklyGoal]);
+
+                // Helper to get week end date (Sunday)
+                function getWeekEnd(weekStart) {
+                    var end = new Date(weekStart);
+                    end.setDate(end.getDate() + 6);
+                    return end;
+                }
+
+                // Helper to format date range
+                function formatWeekRange(weekStart) {
+                    var start = new Date(weekStart);
+                    var end = getWeekEnd(weekStart);
+                    var startDay = start.getDate();
+                    var endDay = end.getDate();
+                    var startMonth = start.toLocaleString('default', { month: 'short' });
+                    var endMonth = end.toLocaleString('default', { month: 'short' });
+                    if (startMonth === endMonth) {
+                        return startDay + ' - ' + endDay + ' ' + startMonth;
+                    }
+                    return startDay + ' ' + startMonth + ' - ' + endDay + ' ' + endMonth;
+                }
+
+                // Get all weeks from start of year to current week
+                var weeklyHistory = useMemo(function() {
+                    var today = new Date();
+                    var currentWeekId = getWeekIdentifier(today);
+                    var currentYear = today.getFullYear();
+
+                    // Start from Jan 1 of current year
+                    var startDate = new Date(currentYear, 0, 1);
+                    var weeks = [];
+
+                    // Generate all weeks from start of year
+                    var checkDate = new Date(startDate);
+                    while (true) {
+                        var weekId = getWeekIdentifier(checkDate);
+                        var weekEnd = getWeekEnd(weekId);
+
+                        // Stop if week is in the future
+                        if (new Date(weekId) > today) break;
+
+                        // Calculate minutes for this week
+                        var mins = logs.filter(function(l) {
+                            return getWeekIdentifier(l.date) === weekId;
+                        }).reduce(function(a, c) { return a + c.duration; }, 0);
+
+                        var goalMet = mins >= profile.weeklyGoal;
+                        var isCurrent = weekId === currentWeekId;
+
+                        // Get the month this week primarily belongs to (use week start)
+                        var weekStartDate = new Date(weekId);
+                        var monthKey = weekStartDate.getFullYear() + '-' + String(weekStartDate.getMonth() + 1).padStart(2, '0');
+                        var monthName = weekStartDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+                        weeks.push({
+                            weekId: weekId,
+                            weekRange: formatWeekRange(weekId),
+                            mins: mins,
+                            goalMet: goalMet,
+                            isCurrent: isCurrent,
+                            monthKey: monthKey,
+                            monthName: monthName,
+                            percent: Math.min(100, (mins / profile.weeklyGoal) * 100)
+                        });
+
+                        // Move to next week
+                        checkDate.setDate(checkDate.getDate() + 7);
+                    }
+
+                    return weeks.reverse(); // Most recent first
+                }, [logs, profile.weeklyGoal]);
+
+                // Group weeks by month
+                var weeksByMonth = useMemo(function() {
+                    var grouped = {};
+                    var currentMonth = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+
+                    weeklyHistory.forEach(function(week) {
+                        if (!grouped[week.monthKey]) {
+                            grouped[week.monthKey] = {
+                                monthKey: week.monthKey,
+                                monthName: week.monthName,
+                                weeks: [],
+                                isCurrentMonth: week.monthKey === currentMonth
+                            };
+                        }
+                        grouped[week.monthKey].weeks.push(week);
+                    });
+
+                    // Convert to array sorted by month (most recent first)
+                    return Object.values(grouped).sort(function(a, b) {
+                        return b.monthKey.localeCompare(a.monthKey);
+                    });
+                }, [weeklyHistory]);
+
+                function toggleMonth(monthKey) {
+                    var newExpanded = Object.assign({}, expandedMonths);
+                    newExpanded[monthKey] = !newExpanded[monthKey];
+                    setExpandedMonths(newExpanded);
+                }
+
+                function renderDashboard() {
+                    return h('div', { className: "space-y-5 animate-in" },
+                        h('div', { className: "bg-blue-900 rounded-2xl p-5 text-white shadow-lg" },
+                            h('div', { className: "relative z-10" },
+                                h('p', { className: "text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5" }, "Hockey Player"),
+                                h('h2', { className: "text-xl font-extrabold" }, profile.name),
+                                h('div', { className: "flex gap-2 mt-3" },
+                                    h('div', { className: "bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider" }, profile.position),
+                                    h('div', { className: "bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider" }, "#" + profile.jerseyNumber)
+                                )
+                            )
+                        ),
+                        h('div', { className: "p-3 rounded-xl flex gap-2.5 items-center border border-transparent " + recoveryInsight.color },
+                            h(Icon, { name: recoveryInsight.icon, className: "w-4 h-4" }),
+                            h('p', { className: "text-[11px] font-bold" }, recoveryInsight.text)
+                        ),
+                        h('div', { className: "space-y-2.5" },
+                            h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Recent Activity"),
+                            logs.slice(0, 3).map(function(log) {
+                                return h(LogItem, { key: log.id, log: log, onDelete: deleteLog });
+                            }),
+                            logs.length === 0 && h('p', { className: "text-center py-4 text-slate-300 text-xs italic" }, "No activity yet")
+                        )
+                    );
+                }
+
+                function renderHistory() {
+                    var firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+                    var daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+
+                    return h('div', { className: "space-y-4 animate-in" },
+                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
+                            h('div', { className: "flex justify-between items-center mb-3 px-1" },
+                                h('h3', { className: "font-extrabold text-xs uppercase text-slate-500" },
+                                    viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+                                ),
+                                h('div', { className: "flex gap-1" },
+                                    h('button', {
+                                        onClick: function() { setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)); },
+                                        className: "p-1.5 hover:bg-slate-50 rounded-lg transition-colors"
+                                    }, h(Icon, { name: "ChevronLeft" })),
+                                    h('button', {
+                                        onClick: function() { setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)); },
+                                        className: "p-1.5 hover:bg-slate-50 rounded-lg transition-colors"
+                                    }, h(Icon, { name: "ChevronRight" }))
+                                )
+                            ),
+                            h('div', { className: "grid grid-cols-7 gap-0.5 text-center" },
+                                ['S','M','T','W','T','F','S'].map(function(d, i) {
+                                    return h('span', { key: 'day-' + i, className: "text-[9px] font-bold text-slate-300 py-1" }, d);
+                                }),
+                                Array.from({ length: firstDay }).map(function(_, i) {
+                                    return h('div', { key: 'empty-' + i });
+                                }),
+                                Array.from({ length: daysInMonth }).map(function(_, i) {
+                                    var day = i + 1;
+                                    var dStr = viewDate.getFullYear() + '-' + String(viewDate.getMonth() + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                                    var hasLog = logs.some(function(l) { return l.date === dStr; });
+                                    var isSelected = selectedDate === dStr;
+                                    var isToday = dStr === new Date().toISOString().split('T')[0];
+                                    return h('button', {
+                                        key: day,
+                                        onClick: function() { setSelectedDate(dStr); },
+                                        className: "aspect-square rounded-lg text-xs font-bold flex flex-col items-center justify-center relative " +
+                                            (isSelected ? 'bg-blue-900 text-white' : isToday ? 'text-blue-600 bg-blue-50' : 'text-slate-700 hover:bg-slate-50')
+                                    },
+                                        day,
+                                        hasLog && h('div', { className: "w-1 h-1 rounded-full absolute bottom-1 " + (isSelected ? 'bg-white' : 'bg-blue-400') })
+                                    );
+                                })
+                            )
+                        ),
+                        h('div', { className: "space-y-2" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase px-1" }, "Activity for " + selectedDate),
+                            logs.filter(function(l) { return l.date === selectedDate; }).map(function(log) {
+                                return h(LogItem, { key: log.id, log: log, onDelete: deleteLog });
+                            }),
+                            logs.filter(function(l) { return l.date === selectedDate; }).length === 0 &&
+                                h('p', { className: "text-center py-4 text-slate-300 text-[11px] italic" }, "Rest day")
+                        )
+                    );
+                }
+
+                function renderWeekItem(week) {
+                    return h('div', {
+                        key: week.weekId,
+                        className: "flex items-center justify-between p-3 bg-slate-50 rounded-xl " + (week.isCurrent ? 'ring-2 ring-blue-900' : '')
+                    },
+                        h('div', { className: "flex items-center gap-3" },
+                            h('div', {
+                                className: "w-8 h-8 rounded-full flex items-center justify-center " +
+                                    (week.isCurrent ? 'bg-blue-100' : week.goalMet ? 'bg-emerald-100' : 'bg-rose-100')
+                            },
+                                week.isCurrent
+                                    ? h(Icon, { name: "Clock", className: "w-4 h-4 text-blue-600" })
+                                    : week.goalMet
+                                        ? h(Icon, { name: "Check", className: "w-4 h-4 text-emerald-600" })
+                                        : h(Icon, { name: "X", className: "w-4 h-4 text-rose-500" })
+                            ),
+                            h('div', null,
+                                h('p', { className: "text-[11px] font-bold text-slate-700" }, week.weekRange),
+                                h('p', { className: "text-[9px] text-slate-400" },
+                                    week.mins + "m / " + profile.weeklyGoal + "m" +
+                                    (week.isCurrent ? " (In Progress)" : week.goalMet ? " ✓ Goal Met" : " ✗ Goal Missed")
+                                )
+                            )
+                        ),
+                        h('div', { className: "w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden" },
+                            h('div', {
+                                className: "h-full rounded-full transition-all " +
+                                    (week.isCurrent ? 'bg-blue-600' : week.goalMet ? 'bg-emerald-500' : 'bg-rose-400'),
+                                style: { width: week.percent + '%' }
+                            })
+                        )
+                    );
+                }
+
+                function renderMonthGroup(monthData) {
+                    var isExpanded = monthData.isCurrentMonth || expandedMonths[monthData.monthKey];
+                    var goalsMetCount = monthData.weeks.filter(function(w) { return w.goalMet && !w.isCurrent; }).length;
+                    var completedWeeks = monthData.weeks.filter(function(w) { return !w.isCurrent; }).length;
+
+                    if (monthData.isCurrentMonth) {
+                        // Current month - always show weeks expanded
+                        return h('div', { key: monthData.monthKey, className: "space-y-2" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase px-1" }, monthData.monthName),
+                            monthData.weeks.map(function(week) {
+                                return renderWeekItem(week);
+                            })
+                        );
+                    }
+
+                    // Past months - collapsible
+                    return h('div', { key: monthData.monthKey, className: "space-y-2" },
+                        h('button', {
+                            onClick: function() { toggleMonth(monthData.monthKey); },
+                            className: "w-full flex items-center justify-between p-3 bg-white rounded-xl border shadow-sm hover:bg-slate-50 transition-colors"
+                        },
+                            h('div', { className: "flex items-center gap-3" },
+                                h('div', { className: "w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center" },
+                                    h(Icon, { name: "Calendar", className: "w-4 h-4 text-slate-500" })
+                                ),
+                                h('div', { className: "text-left" },
+                                    h('p', { className: "text-xs font-bold text-slate-700" }, monthData.monthName),
+                                    h('p', { className: "text-[9px] text-slate-400" },
+                                        goalsMetCount + "/" + completedWeeks + " weeks goal met"
+                                    )
+                                )
+                            ),
+                            h('div', { className: "flex items-center gap-2" },
+                                h('div', { className: "flex gap-1" },
+                                    monthData.weeks.filter(function(w) { return !w.isCurrent; }).map(function(w, i) {
+                                        return h('div', {
+                                            key: i,
+                                            className: "w-2 h-2 rounded-full " + (w.goalMet ? 'bg-emerald-400' : 'bg-rose-400')
+                                        });
+                                    })
+                                ),
+                                h(Icon, {
+                                    name: isExpanded ? "ChevronUp" : "ChevronDown",
+                                    className: "w-4 h-4 text-slate-400"
+                                })
+                            )
+                        ),
+                        isExpanded && h('div', { className: "space-y-2 pl-2 animate-in" },
+                            monthData.weeks.map(function(week) {
+                                return renderWeekItem(week);
+                            })
+                        )
+                    );
+                }
+
+                function renderAnalysis() {
+                    var dashOffset = 314.15 - (314.15 * weeklyProgress.percent) / 100;
+                    return h('div', { className: "space-y-5 animate-in" },
+                        h('div', { className: "bg-white p-6 rounded-3xl border shadow-sm text-center" },
+                            h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4" }, "This Week's Progress"),
+                            h('div', { className: "relative w-28 h-28 mx-auto flex items-center justify-center mb-4" },
+                                h('svg', { className: "w-full h-full -rotate-90" },
+                                    h('circle', { cx: "56", cy: "56", r: "50", stroke: "#f1f5f9", strokeWidth: "8", fill: "none" }),
+                                    h('circle', {
+                                        cx: "56", cy: "56", r: "50", stroke: "#1e3a8a", strokeWidth: "8", fill: "none",
+                                        strokeDasharray: "314.15", strokeDashoffset: dashOffset, strokeLinecap: "round",
+                                        className: "transition-all duration-700"
+                                    })
+                                ),
+                                h('div', { className: "absolute text-xl font-black text-blue-900" }, Math.round(weeklyProgress.percent) + "%")
+                            ),
+                            h('p', { className: "text-lg font-extrabold text-blue-900" }, weeklyProgress.mins + " / " + profile.weeklyGoal + "m"),
+                            h('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-tighter" }, "Minutes logged this week")
+                        ),
+                        h('div', { className: "grid grid-cols-2 gap-3" },
+                            h('div', { className: "bg-white p-3.5 rounded-2xl border shadow-sm text-center" },
+                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Total Sessions"),
+                                h('p', { className: "text-lg font-black text-blue-900" }, logs.length)
+                            ),
+                            h('div', { className: "bg-white p-3.5 rounded-2xl border shadow-sm text-center" },
+                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Avg Mins/Session"),
+                                h('p', { className: "text-lg font-black text-blue-900" },
+                                    logs.length ? Math.round(logs.reduce(function(a, c) { return a + c.duration; }, 0) / logs.length) : 0
+                                )
+                            )
+                        ),
+                        // Weekly History Section
+                        h('div', { className: "space-y-3" },
+                            h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Weekly Goal History"),
+                            weeksByMonth.length > 0
+                                ? weeksByMonth.map(function(monthData) {
+                                    return renderMonthGroup(monthData);
+                                })
+                                : h('p', { className: "text-center py-4 text-slate-300 text-xs italic" }, "No weekly history yet")
+                        )
+                    );
+                }
+
+                function renderProfile() {
+                    return h('div', { className: "space-y-5 animate-in pb-4" },
+                        h('section', { className: "space-y-3" },
+                            h('h2', { className: "text-sm font-black px-1 uppercase tracking-wider text-slate-500" }, "Athlete Profile"),
+                            h('div', { className: "bg-white p-5 rounded-2xl border space-y-4 shadow-sm" },
+                                h('div', { className: "space-y-1" },
+                                    h('label', { className: "text-[9px] font-bold text-slate-400 uppercase ml-1" }, "Full Name"),
+                                    h('input', {
+                                        className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100 focus:ring-blue-900",
+                                        value: profile.name,
+                                        onChange: function(e) { setProfile(Object.assign({}, profile, { name: e.target.value })); }
+                                    })
+                                ),
+                                h('div', { className: "grid grid-cols-2 gap-3" },
+                                    h('div', { className: "space-y-1" },
+                                        h('label', { className: "text-[9px] font-bold text-slate-400 uppercase ml-1" }, "Position"),
+                                        h('select', {
+                                            className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100",
+                                            value: profile.position,
+                                            onChange: function(e) { setProfile(Object.assign({}, profile, { position: e.target.value })); }
+                                        },
+                                            ['Forward', 'Midfielder', 'Defender', 'Goalkeeper', 'Utility'].map(function(p) {
+                                                return h('option', { key: p, value: p }, p);
+                                            })
+                                        )
+                                    ),
+                                    h('div', { className: "space-y-1" },
+                                        h('label', { className: "text-[9px] font-bold text-slate-400 uppercase ml-1" }, "Jersey #"),
+                                        h('input', {
+                                            className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100",
+                                            value: profile.jerseyNumber,
+                                            onChange: function(e) { setProfile(Object.assign({}, profile, { jerseyNumber: e.target.value })); }
+                                        })
+                                    )
+                                ),
+                                h('div', { className: "space-y-2 pt-1" },
+                                    h('div', { className: "flex justify-between items-center px-1" },
+                                        h('label', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Weekly Goal"),
+                                        h('span', { className: "text-xs font-black text-blue-900" }, profile.weeklyGoal + "m")
+                                    ),
+                                    h('input', {
+                                        type: "range", min: "60", max: "600", step: "30",
+                                        value: profile.weeklyGoal,
+                                        onChange: function(e) { setProfile(Object.assign({}, profile, { weeklyGoal: parseInt(e.target.value) })); },
+                                        className: "w-full"
+                                    })
+                                )
+                            )
+                        ),
+                        h('section', { className: "space-y-3" },
+                            h('h2', { className: "text-sm font-black px-1 uppercase tracking-wider text-slate-500" }, "App Settings"),
+                            h('div', { className: "bg-white p-3 rounded-2xl border space-y-1 shadow-sm" },
+                                !isStandalone && h('button', {
+                                    onClick: handleInstallClick,
+                                    className: "w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-blue-900"
+                                },
+                                    h('div', { className: "w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center" }, h(Icon, { name: "Smartphone" })),
+                                    h('div', { className: "text-left flex-1" },
+                                        h('p', { className: "font-bold text-xs" }, "Install App"),
+                                        h('p', { className: "text-[9px] text-slate-400" }, "Full-screen home screen access")
+                                    ),
+                                    h(Icon, { name: "Plus", className: "w-3 h-3" })
+                                ),
+                                h('button', {
+                                    onClick: exportData,
+                                    className: "w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
+                                },
+                                    h('div', { className: "w-8 h-8 rounded-lg bg-slate-50 text-slate-600 flex items-center justify-center" }, h(Icon, { name: "Download" })),
+                                    h('div', { className: "text-left flex-1" },
+                                        h('p', { className: "font-bold text-xs" }, "Export Backup"),
+                                        h('p', { className: "text-[9px] text-slate-400" }, "Download .json data")
+                                    ),
+                                    h(Icon, { name: "ChevronRight", className: "text-slate-300 w-3 h-3" })
+                                ),
+                                h('button', {
+                                    onClick: function() { fileInputRef.current.click(); },
+                                    className: "w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
+                                },
+                                    h('div', { className: "w-8 h-8 rounded-lg bg-emerald-50 text-emerald-900 flex items-center justify-center" }, h(Icon, { name: "Upload" })),
+                                    h('div', { className: "text-left flex-1" },
+                                        h('p', { className: "font-bold text-xs" }, "Restore Backup"),
+                                        h('p', { className: "text-[9px] text-slate-400" }, "Upload .json data")
+                                    ),
+                                    h(Icon, { name: "ChevronRight", className: "text-slate-300 w-3 h-3" })
+                                ),
+                                h('input', {
+                                    type: "file", ref: fileInputRef, onChange: importData, accept: ".json", className: "hidden"
+                                }),
+                                h('div', { className: "pt-2 px-1" },
+                                    h('button', {
+                                        onClick: resetAllData,
+                                        className: "w-full p-2.5 text-rose-500 rounded-xl font-bold text-[10px] uppercase hover:bg-rose-50 transition-colors border border-rose-100"
+                                    }, "Wipe Local Storage")
+                                )
+                            )
+                        ),
+                        h('p', { className: "text-center text-[9px] font-bold text-slate-300 uppercase pb-6" }, "Version 2.3.2-PWA")
+                    );
+                }
+
+                function renderAddModal() {
+                    if (!showAddModal) return null;
+                    return h('div', { className: "fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[100] flex items-end sm:items-center justify-center p-4" },
+                        h('div', { className: "bg-white w-full max-sm:rounded-t-3xl sm:rounded-3xl p-6 space-y-4 animate-in" },
+                            h('div', { className: "flex justify-between items-center" },
+                                h('h2', { className: "text-sm font-black uppercase tracking-widest text-slate-500" }, "Log Activity"),
+                                h('button', { onClick: function() { setShowAddModal(false); }, className: "p-1 text-slate-300" }, h(Icon, { name: "X" }))
+                            ),
+                            h('div', { className: "grid grid-cols-3 gap-2" },
+                                EXERCISE_TYPES.map(function(t) {
+                                    return h('button', {
+                                        key: t.id,
+                                        onClick: function() { setNewLog(Object.assign({}, newLog, { type: t.id })); },
+                                        className: "p-2 rounded-xl border flex flex-col items-center gap-1 transition-all " +
+                                            (newLog.type === t.id ? 'border-blue-900 bg-blue-50 text-blue-900' : 'border-slate-100 bg-slate-50 text-slate-400')
+                                    },
+                                        h('span', { className: "text-base" }, t.icon),
+                                        h('span', { className: "text-[9px] font-bold uppercase" }, t.name)
+                                    );
+                                })
+                            ),
+                            h('div', { className: "space-y-3" },
+                                h('div', { className: "space-y-1" },
+                                    h('label', { className: "text-[9px] font-bold text-slate-400 uppercase ml-1" }, "Date"),
+                                    h('input', {
+                                        type: "date",
+                                        className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100",
+                                        value: newLog.date,
+                                        onChange: function(e) { setNewLog(Object.assign({}, newLog, { date: e.target.value })); }
+                                    })
+                                ),
+                                newLog.type !== 'rest' && h('div', { className: "grid grid-cols-2 gap-3" },
+                                    h('div', { className: "space-y-1" },
+                                        h('label', { className: "text-[9px] font-bold text-slate-400 uppercase ml-1" }, "Duration (Mins)"),
+                                        h('input', {
+                                            type: "number",
+                                            className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100",
+                                            placeholder: "0",
+                                            value: newLog.duration,
+                                            onChange: function(e) { setNewLog(Object.assign({}, newLog, { duration: e.target.value })); }
+                                        })
+                                    ),
+                                    h('div', { className: "space-y-1" },
+                                        h('label', { className: "text-[9px] font-bold text-slate-400 uppercase ml-1" }, "Intensity"),
+                                        h('select', {
+                                            className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100",
+                                            value: newLog.intensity,
+                                            onChange: function(e) { setNewLog(Object.assign({}, newLog, { intensity: e.target.value })); }
+                                        },
+                                            INTENSITY_LEVELS.map(function(i) {
+                                                return h('option', { key: i.id, value: i.id }, i.name);
+                                            })
+                                        )
+                                    )
+                                )
+                            ),
+                            h('button', {
+                                onClick: addLog,
+                                className: "w-full bg-blue-900 text-white p-3.5 rounded-xl font-black shadow-lg uppercase text-[11px] tracking-widest mt-2 active:scale-95 transition-transform"
+                            }, "Save Activity")
+                        )
+                    );
+                }
+
+                return h('div', { className: "min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto relative overflow-x-hidden" },
+                    h('header', { className: "bg-white border-b px-4 py-3 sticky top-0 z-50 flex items-center justify-between flex-shrink-0" },
+                        h('div', { className: "flex items-center gap-2" },
+                            h('img', { src: LOGO_URL, className: "w-6 h-6 object-contain" }),
+                            h('h1', { className: "font-extrabold text-blue-900 text-sm tracking-tight" }, "STC HOCKEY")
+                        ),
+                        statusMsg && h('span', { className: "text-[9px] font-bold uppercase text-blue-600 animate-pulse text-right max-w-[150px] leading-tight" }, statusMsg)
+                    ),
+                    showInstallBanner && h('div', { className: "m-4 bg-blue-900 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg animate-in flex-shrink-0" },
+                        h('div', { className: "flex items-center gap-3" },
+                            h('div', { className: "bg-white/20 p-2 rounded-xl" }, h(Icon, { name: "Smartphone" })),
+                            h('div', null,
+                                h('p', { className: "font-bold text-xs" }, "Install App"),
+                                h('p', { className: "text-[10px] opacity-80" }, "Full-screen access from home screen")
+                            )
+                        ),
+                        h('div', { className: "flex gap-2" },
+                            h('button', { onClick: function() { setShowInstallBanner(false); }, className: "px-3 py-1.5 text-[10px] font-bold uppercase" }, "Later"),
+                            h('button', { onClick: handleInstallClick, className: "bg-white text-blue-900 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase" }, "Install")
+                        )
+                    ),
+                    h('main', { className: "main-content flex-1 p-4 space-y-5 pb-28" },
+                        activeTab === 'dashboard' && renderDashboard(),
+                        activeTab === 'history' && renderHistory(),
+                        activeTab === 'analysis' && renderAnalysis(),
+                        activeTab === 'profile' && renderProfile()
+                    ),
+                    h('nav', {
+                        className: "fixed bottom-5 left-4 right-4 max-w-md mx-auto bg-white/95 backdrop-blur-sm border rounded-2xl px-2 py-1.5 flex justify-around items-center shadow-lg z-[60]",
+                        style: { marginBottom: 'env(safe-area-inset-bottom)' }
+                    },
+                        h(NavBtn, { active: activeTab === 'dashboard', onClick: function() { setActiveTab('dashboard'); }, icon: "Home" }),
+                        h(NavBtn, { active: activeTab === 'history', onClick: function() { setActiveTab('history'); }, icon: "Calendar" }),
+                        h('button', {
+                            onClick: function() { setShowAddModal(true); },
+                            className: "bg-blue-900 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all mx-1"
+                        }, h(Icon, { name: "Plus", className: "w-5 h-5" })),
+                        h(NavBtn, { active: activeTab === 'analysis', onClick: function() { setActiveTab('analysis'); }, icon: "PieChart" }),
+                        h(NavBtn, { active: activeTab === 'profile', onClick: function() { setActiveTab('profile'); }, icon: "Settings" })
+                    ),
+                    renderAddModal(),
+                    confirmDialog && h(ConfirmDialog, {
+                        message: confirmDialog.message,
+                        onConfirm: confirmDialog.onConfirm,
+                        onCancel: confirmDialog.onCancel
+                    })
+                );
+            }
+
+            var root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(h(App));
+        })();
     </script>
 </body>
 </html>
