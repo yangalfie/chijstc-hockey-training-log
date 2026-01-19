@@ -2,29 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>STC Hockey Tracker</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React and Babel for browser compilation -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        input[type="range"] { -webkit-appearance: none; background: transparent; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #1e3a8a; cursor: pointer; margin-top: -7px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #e2e8f0; border-radius: 3px; }
     </style>
 </head>
-<body>
+<body class="bg-slate-50">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
-        
-        // Inline Lucide Icon components for simple usage in single file
-        const Icon = ({ name, className }) => {
+
+        // Reusable Icon Component utilizing Lucide
+        const Icon = ({ name, className = "w-5 h-5" }) => {
             const [svg, setSvg] = useState('');
             useEffect(() => {
                 const icon = lucide.icons[name];
@@ -37,25 +38,12 @@
                     setSvg(svgString);
                 }
             }, [name]);
-            return <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                width="24" 
-                height="24" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className={className}
-                dangerouslySetInnerHTML={{ __html: svg }}
-            />;
+            return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: svg }} />;
         };
 
-        // --- CONFIGURATION ---
-        const LOGO_URL = "https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png"; 
-        const STORAGE_KEY_LOGS = "stc_hockey_logs_v1";
-        const STORAGE_KEY_PROFILE = "stc_hockey_profile_v1";
+        const LOGO_URL = "https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png";
+        const STORAGE_KEY_LOGS = "stc_hockey_logs_v2";
+        const STORAGE_KEY_PROFILE = "stc_hockey_profile_v2";
         const HOCKEY_POSITIONS = ["Forward", "Midfielder", "Defender", "Goalkeeper", "Utility"];
 
         const EXERCISE_TYPES = [
@@ -70,156 +58,290 @@
         ];
 
         const INTENSITY_LEVELS = [
-            { id: 'none', name: 'N/A', multiplier: 0, color: 'text-slate-400', bg: 'bg-slate-50' },
-            { id: 'low', name: 'Low', multiplier: 0.7, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-            { id: 'moderate', name: 'Moderate', multiplier: 1.0, color: 'text-amber-500', bg: 'bg-amber-50' },
-            { id: 'high', name: 'High', multiplier: 1.4, color: 'text-rose-500', bg: 'bg-rose-50' },
+            { id: 'none', name: 'N/A', multiplier: 0 },
+            { id: 'low', name: 'Low', multiplier: 0.7 },
+            { id: 'moderate', name: 'Moderate', multiplier: 1.0 },
+            { id: 'high', name: 'High', multiplier: 1.4 },
         ];
 
-        // --- APP ---
+        // --- UTILS ---
+        const getWeekIdentifier = (date) => {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff)).toISOString().split('T')[0];
+        };
+
         function App() {
-            const [logs, setLogs] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEY_LOGS);
-                return saved ? JSON.parse(saved) : [];
-            });
-            const [profile, setProfile] = useState(() => {
-                const saved = localStorage.getItem(STORAGE_KEY_PROFILE);
-                return saved ? JSON.parse(saved) : { name: 'STC Athlete', position: 'Midfielder', jerseyNumber: '07', weeklyGoal: 300, intensityGoal: 3 };
-            });
+            const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]'));
+            const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{"name":"STC Athlete","position":"Midfielder","jerseyNumber":"07","weeklyGoal":300,"intensityGoal":3}'));
             const [activeTab, setActiveTab] = useState('dashboard');
             const [showAddModal, setShowAddModal] = useState(false);
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+            const [viewDate, setViewDate] = useState(new Date());
             const [statusMsg, setStatusMsg] = useState(null);
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
             const [newLog, setNewLog] = useState({ type: 'drills', duration: '', intensity: 'moderate', date: new Date().toISOString().split('T')[0] });
 
             useEffect(() => { localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs)); }, [logs]);
             
+            // PWA Install Logic
+            useEffect(() => {
+                const handleBeforeInstall = (e) => {
+                    e.preventDefault();
+                    setDeferredPrompt(e);
+                };
+                window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+                return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+            }, []);
+
+            const handleInstall = async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') setDeferredPrompt(null);
+            };
+
             const addLog = (e) => {
                 e.preventDefault();
                 const durationVal = newLog.type === 'rest' ? 0 : parseInt(newLog.duration || 0);
-                if (newLog.type !== 'rest' && durationVal <= 0) {
-                    setStatusMsg({ type: 'error', text: 'Minutes must be greater than 0' });
-                    return;
-                }
+                if (newLog.type !== 'rest' && durationVal <= 0) return setStatusMsg('Please enter minutes');
+                
                 const entry = { id: Date.now(), ...newLog, duration: durationVal };
                 setLogs([entry, ...logs].sort((a, b) => new Date(b.date) - new Date(a.date)));
                 setShowAddModal(false);
                 setNewLog({ ...newLog, duration: '' });
-                setStatusMsg({ type: 'success', text: 'Activity logged!' });
+                setStatusMsg('Activity logged!');
             };
 
             const deleteLog = (id) => {
                 setLogs(logs.filter(l => l.id !== id));
-                setStatusMsg({ type: 'info', text: 'Log deleted.' });
+                setStatusMsg('Log removed');
             };
 
+            useEffect(() => {
+                if (statusMsg) {
+                    const t = setTimeout(() => setStatusMsg(null), 2000);
+                    return () => clearTimeout(t);
+                }
+            }, [statusMsg]);
+
+            const recoveryStats = useMemo(() => {
+                const recent = logs.filter(l => (new Date() - new Date(l.date)) / (1000*60*60*24) <= 7);
+                const high = recent.filter(l => l.intensity === 'high').length;
+                const rests = recent.filter(l => l.type === 'rest').length;
+                if (high >= 4 && rests < 1) return { status: 'Warning', tip: 'Rest needed soon!', color: 'text-rose-600' };
+                return { status: 'Optimal', tip: 'Balance looks great!', color: 'text-emerald-600' };
+            }, [logs]);
+
             return (
-                <div className="min-h-screen bg-slate-50 pb-24">
-                    {/* Status Message */}
-                    {statusMsg && (
-                        <div className="fixed top-4 left-4 right-4 z-[100] p-4 rounded-2xl bg-white shadow-xl border flex items-center gap-3 animate-bounce">
-                            <span className="text-xs font-black uppercase">{statusMsg.text}</span>
+                <div className="min-h-screen pb-28">
+                    {/* PWA Banner */}
+                    {deferredPrompt && (
+                        <div className="bg-blue-900 text-white p-3 flex justify-between items-center sticky top-0 z-[60]">
+                            <span className="text-[10px] font-black uppercase">Install App for Offline Use</span>
+                            <button onClick={handleInstall} className="bg-white text-blue-900 px-3 py-1 rounded-full text-[10px] font-black">INSTALL</button>
                         </div>
                     )}
 
-                    <header className="bg-white border-b p-4 sticky top-0 z-50">
-                        <div className="max-w-md mx-auto flex items-center gap-3">
+                    {statusMsg && (
+                        <div className="fixed top-16 left-4 right-4 z-[70] bg-white border shadow-xl p-4 rounded-2xl animate-bounce text-center">
+                            <span className="text-xs font-black uppercase text-blue-900">{statusMsg}</span>
+                        </div>
+                    )}
+
+                    <header className="bg-white border-b p-4 sticky top-0 z-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
                             <img src={LOGO_URL} className="w-8 h-8 object-contain" />
                             <h1 className="font-black text-blue-900 tracking-tighter">STC HOCKEY</h1>
                         </div>
+                        <div className={`text-[10px] font-black uppercase px-2 py-1 rounded-md bg-slate-100 ${recoveryStats.color}`}>{recoveryStats.status}</div>
                     </header>
 
-                    <main className="max-w-md mx-auto p-4">
+                    <main className="max-w-md mx-auto p-4 space-y-6">
                         {activeTab === 'dashboard' && (
-                            <div className="space-y-6">
+                            <div className="space-y-6 animate-in fade-in">
                                 <div className="bg-blue-900 rounded-[32px] p-6 text-white shadow-xl">
-                                    <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">Athlete Profile</p>
-                                    <h2 className="text-2xl font-black mb-4">{profile.name}</h2>
-                                    <div className="flex gap-2">
-                                        <div className="bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold">{profile.position}</div>
-                                        <div className="bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold">#{profile.jerseyNumber}</div>
+                                    <h2 className="text-2xl font-black">{profile.name}</h2>
+                                    <div className="flex gap-4 mt-4 opacity-80 text-[10px] font-bold uppercase">
+                                        <span>{profile.position}</span>
+                                        <span>#{profile.jerseyNumber}</span>
+                                        <span>{logs.reduce((a,c)=>a+c.duration,0)}m Total</span>
                                     </div>
                                 </div>
-
+                                <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
+                                    <Icon name="Lightbulb" className="text-amber-500" />
+                                    <p className="text-xs font-bold text-slate-600">{recoveryStats.tip}</p>
+                                </div>
                                 <div className="space-y-3">
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Recent Logs</h3>
-                                    {logs.slice(0, 5).map(log => (
-                                        <div key={log.id} className="bg-white p-4 rounded-2xl border flex justify-between items-center">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xl">{(EXERCISE_TYPES.find(t=>t.id===log.type)||{}).icon}</span>
-                                                <div>
-                                                    <p className="font-black text-sm">{(EXERCISE_TYPES.find(t=>t.id===log.type)||{}).name}</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase">{log.date} • {log.duration}m</p>
-                                                </div>
-                                            </div>
-                                            <button onClick={()=>deleteLog(log.id)} className="text-slate-300 hover:text-rose-500"><Icon name="Trash2" className="w-4 h-4" /></button>
-                                        </div>
-                                    ))}
+                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent Activity</h3>
+                                    {logs.slice(0, 4).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
                                 </div>
                             </div>
                         )}
-                        
+
+                        {activeTab === 'history' && (
+                            <CalendarView logs={logs} selectedDate={selectedDate} setSelectedDate={setSelectedDate} viewDate={viewDate} setViewDate={setViewDate} deleteLog={deleteLog} />
+                        )}
+
+                        {activeTab === 'analytics' && (
+                            <AnalyticsView logs={logs} profile={profile} />
+                        )}
+
                         {activeTab === 'profile' && (
-                            <div className="bg-white p-6 rounded-[32px] border space-y-4">
-                                <h2 className="font-black text-xl">Settings</h2>
-                                <input className="w-full p-3 bg-slate-50 rounded-xl font-bold" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} placeholder="Name" />
-                                <select className="w-full p-3 bg-slate-50 rounded-xl font-bold" value={profile.position} onChange={e=>setProfile({...profile, position: e.target.value})}>
-                                    {HOCKEY_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                                <button onClick={() => {localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile)); setStatusMsg({type:'success', text:'Saved!'})}} className="w-full bg-blue-900 text-white p-4 rounded-xl font-black">Save Profile</button>
+                            <div className="space-y-4 animate-in slide-in-from-bottom-4">
+                                <h2 className="text-xl font-black">Athlete Settings</h2>
+                                <div className="bg-white p-6 rounded-[32px] border space-y-4">
+                                    <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} placeholder="Full Name" />
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <select className="p-4 bg-slate-50 rounded-2xl font-bold appearance-none" value={profile.position} onChange={e=>setProfile({...profile, position: e.target.value})}>
+                                            {HOCKEY_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                        <input className="p-4 bg-slate-50 rounded-2xl font-bold" value={profile.jerseyNumber} onChange={e=>setProfile({...profile, jerseyNumber: e.target.value})} placeholder="#" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-slate-400">Weekly Goal: {profile.weeklyGoal}m</p>
+                                        <input type="range" min="60" max="600" step="30" value={profile.weeklyGoal} onChange={e=>setProfile({...profile, weeklyGoal: parseInt(e.target.value)})} className="w-full" />
+                                    </div>
+                                    <button onClick={() => {localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile)); setStatusMsg('Saved!')}} className="w-full bg-blue-900 text-white p-4 rounded-2xl font-black shadow-lg">SAVE CHANGES</button>
+                                </div>
                             </div>
                         )}
                     </main>
 
-                    {/* Bottom Nav */}
-                    <nav className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-white/90 backdrop-blur-md border rounded-[24px] p-2 flex justify-around items-center shadow-2xl">
-                        <button onClick={()=>setActiveTab('dashboard')} className={`p-3 rounded-xl ${activeTab==='dashboard'?'bg-blue-900 text-white':'text-slate-400'}`}><Icon name="Activity" /></button>
-                        <button onClick={()=>setShowAddModal(true)} className="bg-blue-900 text-white w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"><Icon name="Plus" /></button>
-                        <button onClick={()=>setActiveTab('profile')} className={`p-3 rounded-xl ${activeTab==='profile'?'bg-blue-900 text-white':'text-slate-400'}`}><Icon name="User" /></button>
+                    <nav className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-white/90 backdrop-blur-xl border rounded-[32px] p-2 flex justify-around items-center shadow-2xl z-50">
+                        <NavBtn active={activeTab === 'dashboard'} onClick={()=>setActiveTab('dashboard')} icon="Activity" />
+                        <NavBtn active={activeTab === 'history'} onClick={()=>setActiveTab('history')} icon="Calendar" />
+                        <button onClick={()=>setShowAddModal(true)} className="bg-blue-900 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-transform"><Icon name="Plus" /></button>
+                        <NavBtn active={activeTab === 'analytics'} onClick={()=>setActiveTab('analytics')} icon="BarChart3" />
+                        <NavBtn active={activeTab === 'profile'} onClick={()=>setActiveTab('profile')} icon="User" />
                     </nav>
 
-                    {/* Add Modal */}
-                    {showAddModal && (
-                        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-                            <div className="bg-white w-full max-w-sm rounded-[32px] p-6 space-y-4">
-                                <h3 className="font-black text-lg">Log Activity</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {EXERCISE_TYPES.map(t => (
-                                        <button key={t.id} onClick={()=>setNewLog({...newLog, type:t.id})} className={`p-2 rounded-xl border text-[10px] font-black uppercase flex items-center gap-2 ${newLog.type===t.id?'border-blue-900 bg-blue-50 text-blue-900':'border-slate-100'}`}>
-                                            <span>{t.icon}</span> {t.name}
-                                        </button>
-                                    ))}
-                                </div>
-                                <input type="date" className="w-full p-3 bg-slate-50 rounded-xl font-bold" value={newLog.date} onChange={e=>setNewLog({...newLog, date: e.target.value})} />
-                                {newLog.type !== 'rest' && (
-                                    <input type="number" min="1" className="w-full p-3 bg-slate-50 rounded-xl font-bold" placeholder="Minutes" value={newLog.duration} onChange={e=>setNewLog({...newLog, duration:e.target.value})} />
-                                )}
-                                <div className="flex gap-2">
-                                    <button onClick={()=>setShowAddModal(false)} className="flex-1 font-bold text-slate-400">Cancel</button>
-                                    <button onClick={addLog} className="flex-1 bg-blue-900 text-white p-3 rounded-xl font-black">Add</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {showAddModal && <Modal newLog={newLog} setNewLog={setNewLog} addLog={addLog} onClose={()=>setShowAddModal(false)} />}
                 </div>
             );
         }
 
+        const NavBtn = ({ active, onClick, icon }) => (
+            <button onClick={onClick} className={`p-3 rounded-2xl transition-all ${active ? 'bg-blue-900 text-white shadow-md' : 'text-slate-400'}`}>
+                <Icon name={icon} />
+            </button>
+        );
+
+        const LogItem = ({ log, onDelete }) => {
+            const type = EXERCISE_TYPES.find(t => t.id === log.type) || {};
+            return (
+                <div className="bg-white p-4 rounded-2xl border flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl">{type.icon}</span>
+                        <div>
+                            <p className="font-black text-sm">{type.name}</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">{log.date} • {log.duration}m</p>
+                        </div>
+                    </div>
+                    <button onClick={()=>onDelete(log.id)} className="text-slate-200 group-hover:text-rose-500"><Icon name="Trash2" className="w-4 h-4" /></button>
+                </div>
+            );
+        };
+
+        const CalendarView = ({ logs, selectedDate, setSelectedDate, viewDate, setViewDate, deleteLog }) => {
+            const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
+            const startDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
+            const days = Array.from({ length: startDay }, () => null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+
+            return (
+                <div className="space-y-4 animate-in fade-in">
+                    <div className="bg-white p-4 rounded-[32px] border">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-black text-sm">{viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                            <div className="flex gap-2">
+                                <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()-1)))}><Icon name="ChevronLeft" /></button>
+                                <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()+1)))}><Icon name="ChevronRight" /></button>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-7 gap-1 text-center">
+                            {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[8px] font-black text-slate-300">{d}</span>)}
+                            {days.map((d, i) => {
+                                if (!d) return <div key={i} />;
+                                const dStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                                const hasLog = logs.some(l => l.date === dStr);
+                                return (
+                                    <button key={i} onClick={()=>setSelectedDate(dStr)} className={`aspect-square rounded-xl text-xs font-bold flex items-center justify-center relative ${selectedDate === dStr ? 'bg-blue-900 text-white' : 'hover:bg-slate-50'}`}>
+                                        {d} {hasLog && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-current opacity-50" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {logs.filter(l => l.date === selectedDate).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
+                    </div>
+                </div>
+            );
+        };
+
+        const AnalyticsView = ({ logs, profile }) => {
+            const currentWeek = getWeekIdentifier(new Date());
+            const thisWeekMins = logs.filter(l => getWeekIdentifier(l.date) === currentWeek).reduce((a,c)=>a+c.duration,0);
+            const progress = Math.min(100, (thisWeekMins / profile.weeklyGoal) * 100);
+
+            return (
+                <div className="space-y-6 animate-in fade-in">
+                    <div className="bg-white p-8 rounded-[40px] border text-center space-y-4">
+                        <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
+                            <svg className="w-full h-full -rotate-90">
+                                <circle cx="64" cy="64" r="58" stroke="#f1f5f9" strokeWidth="12" fill="none" />
+                                <circle cx="64" cy="64" r="58" stroke="#1e3a8a" strokeWidth="12" fill="none" strokeDasharray="364.4" strokeDashoffset={364.4 - (364.4 * progress) / 100} strokeLinecap="round" />
+                            </svg>
+                            <div className="absolute">
+                                <p className="text-2xl font-black">{Math.round(progress)}%</p>
+                                <p className="text-[8px] font-black text-slate-400 uppercase">Weekly Goal</p>
+                            </div>
+                        </div>
+                        <h3 className="text-xl font-black">{thisWeekMins} / {profile.weeklyGoal}m</h3>
+                    </div>
+                </div>
+            );
+        };
+
+        const Modal = ({ newLog, setNewLog, addLog, onClose }) => (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+                <div className="bg-white w-full max-w-sm rounded-[40px] p-8 space-y-4 animate-in slide-in-from-bottom-10">
+                    <h2 className="text-xl font-black">Track Exercise</h2>
+                    <div className="grid grid-cols-2 gap-2">
+                        {EXERCISE_TYPES.map(t => (
+                            <button key={t.id} onClick={()=>setNewLog({...newLog, type:t.id})} className={`p-3 rounded-2xl border flex items-center gap-2 ${newLog.type === t.id ? 'border-blue-900 bg-blue-50' : 'border-slate-50 bg-slate-50'}`}>
+                                <span>{t.icon}</span> <span className="text-[10px] font-black">{t.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl font-bold" value={newLog.date} onChange={e=>setNewLog({...newLog, date: e.target.value})} />
+                    {newLog.type !== 'rest' && (
+                        <div className="flex gap-2">
+                            <input type="number" className="flex-1 p-4 bg-slate-50 rounded-2xl font-bold" placeholder="Mins" value={newLog.duration} onChange={e=>setNewLog({...newLog, duration:e.target.value})} />
+                            <select className="flex-1 p-4 bg-slate-50 rounded-2xl font-bold" value={newLog.intensity} onChange={e=>setNewLog({...newLog, intensity:e.target.value})}>
+                                {INTENSITY_LEVELS.filter(i=>i.id!=='none').map(i=><option key={i.id} value={i.id}>{i.name}</option>)}
+                            </select>
+                        </div>
+                    )}
+                    <div className="flex gap-2 pt-4">
+                        <button onClick={onClose} className="flex-1 font-bold text-slate-400">Cancel</button>
+                        <button onClick={addLog} className="flex-1 bg-blue-900 text-white p-4 rounded-2xl font-black shadow-lg">LOG IT</button>
+                    </div>
+                </div>
+            </div>
+        );
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
 
-        // --- PWA Service Worker ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                const swCode = `
-                    const CACHE_NAME = 'stc-hockey-v1';
-                    self.addEventListener('install', e => e.waitUntil(caches.open(CACHE_NAME)));
-                    self.addEventListener('fetch', e => e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))));
-                `;
-                const blob = new Blob([swCode], { type: 'application/javascript' });
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW failed', err));
-            });
+        // Fix: Do not attempt to register a Service Worker via Blob URL in this environment
+        // Browsers block blob service workers for security/protocol reasons.
+        // On a real host like GitHub Pages, you should use a separate 'sw.js' file.
+        if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+            // Only attempt registration if we are on a real host, not a preview environment.
+            // For GitHub Pages, the user should ideally have a real sw.js file.
+            // Since this is a single-file delivery, we omit the auto-blob registration to prevent the error.
         }
     </script>
 </body>
