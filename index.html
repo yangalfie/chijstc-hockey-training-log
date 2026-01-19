@@ -388,10 +388,21 @@
 
                 var weeklyProgress = useMemo(function() {
                     var currentWeek = getWeekIdentifier(new Date());
-                    var mins = logs.filter(function(l) {
+                    var weekLogs = logs.filter(function(l) {
                         return getWeekIdentifier(l.date) === currentWeek;
-                    }).reduce(function(a, c) { return a + c.duration; }, 0);
-                    return { mins: mins, percent: Math.min(100, (mins / profile.weeklyGoal) * 100) };
+                    });
+                    var mins = weekLogs.reduce(function(a, c) { return a + c.duration; }, 0);
+                    var restDays = weekLogs.filter(function(l) { return l.type === 'rest'; }).length;
+                    var trainingDays = weekLogs.filter(function(l) { return l.type !== 'rest'; }).length;
+                    var highIntensity = weekLogs.filter(function(l) { return l.intensity === 'high'; }).length;
+                    return {
+                        mins: mins,
+                        percent: Math.min(100, (mins / profile.weeklyGoal) * 100),
+                        restDays: restDays,
+                        trainingDays: trainingDays,
+                        highIntensity: highIntensity,
+                        totalSessions: weekLogs.length
+                    };
                 }, [logs, profile.weeklyGoal]);
 
                 // Helper to get week end date (Sunday)
@@ -687,9 +698,72 @@
                             h('p', { className: "text-lg font-extrabold text-blue-900" }, weeklyProgress.mins + " / " + profile.weeklyGoal + "m"),
                             h('p', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-tighter" }, "Minutes logged this week")
                         ),
+                        // This Week's Breakdown
+                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "This Week's Breakdown"),
+                            h('div', { className: "grid grid-cols-4 gap-2" },
+                                // Training Days
+                                h('div', { className: "text-center p-2 bg-blue-50 rounded-xl" },
+                                    h('div', { className: "flex justify-center mb-1" },
+                                        h(Icon, { name: "Dumbbell", className: "w-4 h-4 text-blue-600" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-blue-900" }, weeklyProgress.trainingDays),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Training")
+                                ),
+                                // Rest Days
+                                h('div', { className: "text-center p-2 bg-purple-50 rounded-xl" },
+                                    h('div', { className: "flex justify-center mb-1" },
+                                        h(Icon, { name: "Moon", className: "w-4 h-4 text-purple-600" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-purple-900" }, weeklyProgress.restDays),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Rest")
+                                ),
+                                // High Intensity
+                                h('div', { className: "text-center p-2 bg-orange-50 rounded-xl" },
+                                    h('div', { className: "flex justify-center mb-1" },
+                                        h(Icon, { name: "Flame", className: "w-4 h-4 text-orange-600" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-orange-900" }, weeklyProgress.highIntensity),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "High Int.")
+                                ),
+                                // Total Sessions
+                                h('div', { className: "text-center p-2 bg-slate-100 rounded-xl" },
+                                    h('div', { className: "flex justify-center mb-1" },
+                                        h(Icon, { name: "Activity", className: "w-4 h-4 text-slate-600" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-slate-700" }, weeklyProgress.totalSessions),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Sessions")
+                                )
+                            ),
+                            // Recovery Status Bar
+                            h('div', { className: "mt-3 pt-3 border-t border-slate-100" },
+                                h('div', { className: "flex items-center justify-between" },
+                                    h('span', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Recovery Balance"),
+                                    h('span', { className: "text-[9px] font-bold " +
+                                        (weeklyProgress.restDays >= 1 ? 'text-emerald-600' : weeklyProgress.highIntensity >= 3 ? 'text-rose-500' : 'text-slate-500') },
+                                        weeklyProgress.restDays >= 1 ? "Good" : weeklyProgress.highIntensity >= 3 ? "Rest Needed" : "Moderate"
+                                    )
+                                ),
+                                h('div', { className: "mt-1.5 h-2 bg-slate-100 rounded-full overflow-hidden flex" },
+                                    weeklyProgress.trainingDays > 0 && h('div', {
+                                        className: "h-full bg-blue-500",
+                                        style: { width: (weeklyProgress.trainingDays / 7 * 100) + '%' }
+                                    }),
+                                    weeklyProgress.restDays > 0 && h('div', {
+                                        className: "h-full bg-purple-500",
+                                        style: { width: (weeklyProgress.restDays / 7 * 100) + '%' }
+                                    })
+                                ),
+                                h('div', { className: "flex justify-between mt-1" },
+                                    h('span', { className: "text-[8px] text-blue-600" }, "Training"),
+                                    h('span', { className: "text-[8px] text-purple-600" }, "Rest")
+                                )
+                            )
+                        ),
+                        // All-time Stats
                         h('div', { className: "grid grid-cols-2 gap-3" },
                             h('div', { className: "bg-white p-3.5 rounded-2xl border shadow-sm text-center" },
-                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Total Sessions"),
+                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "All-time Sessions"),
                                 h('p', { className: "text-lg font-black text-blue-900" }, logs.length)
                             ),
                             h('div', { className: "bg-white p-3.5 rounded-2xl border shadow-sm text-center" },
@@ -930,4 +1004,3 @@
     </script>
 </body>
 </html>
-
