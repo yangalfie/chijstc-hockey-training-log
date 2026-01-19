@@ -4,28 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>STC Hockey Tracker</title>
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e3a8a">
+    <link rel="apple-touch-icon" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href='data:application/json,{"name":"STC Hockey Tracker","short_name":"STCHockey","start_url":".","display":"standalone","background_color":"#f8fafc","theme_color":"#1e3a8a","icons":[{"src":"https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png","sizes":"192x192","type":"image/png"}]}'>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         input[type="range"] { -webkit-appearance: none; background: transparent; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #1e3a8a; cursor: pointer; margin-top: -7px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #e2e8f0; border-radius: 3px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #1e3a8a; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
+        .animate-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .nav-btn-active { @apply bg-blue-900 text-white shadow-md; }
     </style>
 </head>
-<body class="bg-slate-50">
+<body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useMemo, useEffect, useRef } = React;
 
-        // Reusable Icon Component utilizing Lucide
-        const Icon = ({ name, className = "w-5 h-5" }) => {
+        /**
+         * NOTE: In certain restricted environments (like iframes or specific sandbox origins), 
+         * Service Workers and Blob-based SW registration might be blocked by the browser. 
+         * We wrap this in a try-catch and check for secure context.
+         */
+        if ('serviceWorker' in navigator && window.isSecureContext) {
+            try {
+                // We use a Data URI instead of a Blob URL to avoid the protocol error in some sandboxes
+                const swCode = `self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));`;
+                const swUrl = 'data:text/javascript;base64,' + btoa(swCode);
+                
+                // Note: Standard browser security typically requires Service Workers to be served from the same origin 
+                // and via HTTPS. If this still fails in the preview sandbox, the app functions will remain intact.
+                navigator.serviceWorker.register(swUrl).catch(err => {
+                    console.warn("ServiceWorker registration skipped (Sandbox limitation):", err.message);
+                });
+            } catch (e) {
+                console.warn("ServiceWorker setup failed:", e);
+            }
+        }
+
+        // --- ICON COMPONENT ---
+        const Icon = ({ name, className = "w-4 h-4" }) => {
             const [svg, setSvg] = useState('');
             useEffect(() => {
                 const icon = lucide.icons[name];
@@ -38,33 +74,29 @@
                     setSvg(svgString);
                 }
             }, [name]);
-            return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: svg }} />;
+            return <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: svg }} />;
         };
 
+        // --- CONSTANTS ---
         const LOGO_URL = "https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png";
-        const STORAGE_KEY_LOGS = "stc_hockey_logs_v2";
-        const STORAGE_KEY_PROFILE = "stc_hockey_profile_v2";
-        const HOCKEY_POSITIONS = ["Forward", "Midfielder", "Defender", "Goalkeeper", "Utility"];
-
+        const STORAGE_KEY_LOGS = "stc_hockey_logs_vfinal";
+        const STORAGE_KEY_PROFILE = "stc_hockey_profile_vfinal";
+        
         const EXERCISE_TYPES = [
-            { id: 'match', name: 'Hockey Match', icon: '🏑', calPerMin: 12 },
-            { id: 'drills', name: 'Skills & Drills', icon: '🎯', calPerMin: 8 },
-            { id: 'fitness', name: 'Fitness / Sprints', icon: '🏃', calPerMin: 11 },
-            { id: 'endurance', name: 'Endurance Training', icon: '👟', calPerMin: 9 },
-            { id: 'strength', name: 'Strength Training', icon: '💪', calPerMin: 6 },
-            { id: 'recovery', name: 'Active Recovery', icon: '🧘', calPerMin: 3 },
-            { id: 'rest', name: 'Full Rest Day', icon: '😴', calPerMin: 0 },
-            { id: 'other', name: 'Other Sports', icon: '🏀', calPerMin: 7 },
+            { id: 'match', name: 'Match', icon: '🏑' },
+            { id: 'drills', name: 'Drills', icon: '🎯' },
+            { id: 'fitness', name: 'Fitness', icon: '🏃' },
+            { id: 'strength', name: 'Strength', icon: '💪' },
+            { id: 'recovery', name: 'Recovery', icon: '🧘' },
+            { id: 'rest', name: 'Rest', icon: '😴' }
         ];
 
         const INTENSITY_LEVELS = [
-            { id: 'none', name: 'N/A', multiplier: 0 },
-            { id: 'low', name: 'Low', multiplier: 0.7 },
-            { id: 'moderate', name: 'Moderate', multiplier: 1.0 },
-            { id: 'high', name: 'High', multiplier: 1.4 },
+            { id: 'low', name: 'Low' },
+            { id: 'moderate', name: 'Med' },
+            { id: 'high', name: 'High' }
         ];
 
-        // --- UTILS ---
         const getWeekIdentifier = (date) => {
             const d = new Date(date);
             const day = d.getDay();
@@ -72,277 +104,398 @@
             return new Date(d.setDate(diff)).toISOString().split('T')[0];
         };
 
+        const LogItem = ({ log, onDelete }) => {
+            const type = EXERCISE_TYPES.find(t => t.id === log.type) || {};
+            return (
+                <div className="bg-white p-3 rounded-xl border flex items-center justify-between animate-in">
+                    <div className="flex items-center gap-3">
+                        <span className="text-lg">{type.icon}</span>
+                        <div>
+                            <p className="font-bold text-xs">{type.name}</p>
+                            <p className="text-[10px] font-medium text-slate-400">
+                                {log.date} • {log.duration}m • {log.intensity}
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={() => onDelete(log.id)} className="text-slate-300 hover:text-rose-500 p-1">
+                        <Icon name="Trash2" className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            );
+        };
+
         function App() {
             const [logs, setLogs] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_LOGS) || '[]'));
-            const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{"name":"STC Athlete","position":"Midfielder","jerseyNumber":"07","weeklyGoal":300,"intensityGoal":3}'));
+            const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem(STORAGE_KEY_PROFILE) || '{"name":"STC Athlete","position":"Midfielder","jerseyNumber":"07","weeklyGoal":300}'));
             const [activeTab, setActiveTab] = useState('dashboard');
             const [showAddModal, setShowAddModal] = useState(false);
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
             const [viewDate, setViewDate] = useState(new Date());
             const [statusMsg, setStatusMsg] = useState(null);
-            const [deferredPrompt, setDeferredPrompt] = useState(null);
             const [newLog, setNewLog] = useState({ type: 'drills', duration: '', intensity: 'moderate', date: new Date().toISOString().split('T')[0] });
+            const fileInputRef = useRef(null);
 
-            useEffect(() => { localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs)); }, [logs]);
-            
             // PWA Install Logic
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
+            const [showInstallBanner, setShowInstallBanner] = useState(false);
+            const [isIOS, setIsIOS] = useState(false);
+
             useEffect(() => {
-                const handleBeforeInstall = (e) => {
-                    e.preventDefault();
-                    setDeferredPrompt(e);
-                };
-                window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-                return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+                const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+                const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                setIsIOS(iOS);
+
+                if (!isStandalone) {
+                    const handler = (e) => {
+                        e.preventDefault();
+                        setDeferredPrompt(e);
+                        setShowInstallBanner(true);
+                    };
+                    window.addEventListener('beforeinstallprompt', handler);
+                    if (iOS) setShowInstallBanner(true);
+                    return () => window.removeEventListener('beforeinstallprompt', handler);
+                }
             }, []);
 
-            const handleInstall = async () => {
-                if (!deferredPrompt) return;
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') setDeferredPrompt(null);
+            const handleInstallClick = async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        setDeferredPrompt(null);
+                        setShowInstallBanner(false);
+                    }
+                } else if (isIOS) {
+                    notify("iOS: Tap 'Share' then 'Add to Home Screen'");
+                } else {
+                    notify("Use browser menu to 'Install' or 'Add to Home Screen'");
+                }
+            };
+
+            useEffect(() => { localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(logs)); }, [logs]);
+            useEffect(() => { localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile)); }, [profile]);
+
+            const notify = (msg) => {
+                setStatusMsg(msg);
+                setTimeout(() => setStatusMsg(null), 2500);
             };
 
             const addLog = (e) => {
                 e.preventDefault();
                 const durationVal = newLog.type === 'rest' ? 0 : parseInt(newLog.duration || 0);
-                if (newLog.type !== 'rest' && durationVal <= 0) return setStatusMsg('Please enter minutes');
-                
+                if (newLog.type !== 'rest' && durationVal <= 0) {
+                    notify('Invalid duration');
+                    return;
+                }
                 const entry = { id: Date.now(), ...newLog, duration: durationVal };
                 setLogs([entry, ...logs].sort((a, b) => new Date(b.date) - new Date(a.date)));
                 setShowAddModal(false);
                 setNewLog({ ...newLog, duration: '' });
-                setStatusMsg('Activity logged!');
+                notify('Logged!');
             };
 
             const deleteLog = (id) => {
                 setLogs(logs.filter(l => l.id !== id));
-                setStatusMsg('Log removed');
+                notify('Deleted');
             };
 
-            useEffect(() => {
-                if (statusMsg) {
-                    const t = setTimeout(() => setStatusMsg(null), 2000);
-                    return () => clearTimeout(t);
-                }
-            }, [statusMsg]);
+            const exportData = () => {
+                const dataStr = JSON.stringify({ logs, profile }, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', `stc-hockey-data.json`);
+                linkElement.click();
+            };
 
-            const recoveryStats = useMemo(() => {
-                const recent = logs.filter(l => (new Date() - new Date(l.date)) / (1000*60*60*24) <= 7);
-                const high = recent.filter(l => l.intensity === 'high').length;
-                const rests = recent.filter(l => l.type === 'rest').length;
-                if (high >= 4 && rests < 1) return { status: 'Warning', tip: 'Rest needed soon!', color: 'text-rose-600' };
-                return { status: 'Optimal', tip: 'Balance looks great!', color: 'text-emerald-600' };
+            const importData = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        if (json.logs) setLogs(json.logs);
+                        if (json.profile) setProfile(json.profile);
+                        notify('Restored!');
+                    } catch (err) { notify('Error reading file'); }
+                };
+                reader.readAsText(file);
+            };
+
+            const resetAllData = () => {
+                if (window.confirm("Delete all history?")) {
+                    setLogs([]);
+                    notify('Reset');
+                }
+            };
+
+            const recoveryInsight = useMemo(() => {
+                const last7Days = logs.filter(l => (new Date() - new Date(l.date)) / (1000 * 3600 * 24) <= 7);
+                const highIntensity = last7Days.filter(l => l.intensity === 'high').length;
+                const restDays = last7Days.filter(l => l.type === 'rest').length;
+                if (highIntensity >= 3 && restDays < 1) return { text: "Strain High: Rest recommended.", color: "text-rose-600 bg-rose-50", icon: "AlertCircle" };
+                if (restDays >= 1) return { text: "Balanced: Recovery is optimal.", color: "text-emerald-600 bg-emerald-50", icon: "Check" };
+                return { text: "Log rest days to track recovery.", color: "text-blue-600 bg-blue-50", icon: "Info" };
             }, [logs]);
 
+            const weeklyProgress = useMemo(() => {
+                const currentWeek = getWeekIdentifier(new Date());
+                const mins = logs.filter(l => getWeekIdentifier(l.date) === currentWeek).reduce((a,c) => a + c.duration, 0);
+                return { mins, percent: Math.min(100, (mins / profile.weeklyGoal) * 100) };
+            }, [logs, profile.weeklyGoal]);
+
             return (
-                <div className="min-h-screen pb-28">
-                    {/* PWA Banner */}
-                    {deferredPrompt && (
-                        <div className="bg-blue-900 text-white p-3 flex justify-between items-center sticky top-0 z-[60]">
-                            <span className="text-[10px] font-black uppercase">Install App for Offline Use</span>
-                            <button onClick={handleInstall} className="bg-white text-blue-900 px-3 py-1 rounded-full text-[10px] font-black">INSTALL</button>
-                        </div>
-                    )}
-
-                    {statusMsg && (
-                        <div className="fixed top-16 left-4 right-4 z-[70] bg-white border shadow-xl p-4 rounded-2xl animate-bounce text-center">
-                            <span className="text-xs font-black uppercase text-blue-900">{statusMsg}</span>
-                        </div>
-                    )}
-
-                    <header className="bg-white border-b p-4 sticky top-0 z-50 flex items-center justify-between">
+                <div className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto relative overflow-x-hidden pb-24">
+                    <header className="bg-white border-b px-4 py-3 sticky top-0 z-50 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <img src={LOGO_URL} className="w-8 h-8 object-contain" />
-                            <h1 className="font-black text-blue-900 tracking-tighter">STC HOCKEY</h1>
+                            <img src={LOGO_URL} className="w-6 h-6 object-contain" />
+                            <h1 className="font-extrabold text-blue-900 text-sm tracking-tight">STC HOCKEY</h1>
                         </div>
-                        <div className={`text-[10px] font-black uppercase px-2 py-1 rounded-md bg-slate-100 ${recoveryStats.color}`}>{recoveryStats.status}</div>
+                        {statusMsg && <span className="text-[9px] font-bold uppercase text-blue-600 animate-pulse text-right max-w-[150px] leading-tight">{statusMsg}</span>}
                     </header>
 
-                    <main className="max-w-md mx-auto p-4 space-y-6">
+                    {showInstallBanner && (
+                        <div className="m-4 bg-blue-900 text-white p-4 rounded-2xl flex items-center justify-between shadow-lg animate-in">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-white/20 p-2 rounded-xl"><Icon name="Smartphone" /></div>
+                                <div>
+                                    <p className="font-bold text-xs">Install App</p>
+                                    <p className="text-[10px] opacity-80">Access tracker from your home screen</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowInstallBanner(false)} className="px-3 py-1.5 text-[10px] font-bold uppercase">Maybe Later</button>
+                                <button onClick={handleInstallClick} className="bg-white text-blue-900 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase">Install</button>
+                            </div>
+                        </div>
+                    )}
+
+                    <main className="flex-1 p-4 space-y-5">
                         {activeTab === 'dashboard' && (
-                            <div className="space-y-6 animate-in fade-in">
-                                <div className="bg-blue-900 rounded-[32px] p-6 text-white shadow-xl">
-                                    <h2 className="text-2xl font-black">{profile.name}</h2>
-                                    <div className="flex gap-4 mt-4 opacity-80 text-[10px] font-bold uppercase">
-                                        <span>{profile.position}</span>
-                                        <span>#{profile.jerseyNumber}</span>
-                                        <span>{logs.reduce((a,c)=>a+c.duration,0)}m Total</span>
+                            <div className="space-y-5 animate-in">
+                                <div className="bg-blue-900 rounded-2xl p-5 text-white shadow-lg">
+                                    <div className="relative z-10">
+                                        <p className="text-[9px] font-bold opacity-70 uppercase tracking-widest mb-0.5">Hockey Player</p>
+                                        <h2 className="text-xl font-extrabold">{profile.name}</h2>
+                                        <div className="flex gap-2 mt-3">
+                                            <div className="bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">{profile.position}</div>
+                                            <div className="bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">#{profile.jerseyNumber}</div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="bg-white p-4 rounded-2xl border flex gap-3 items-center">
-                                    <Icon name="Lightbulb" className="text-amber-500" />
-                                    <p className="text-xs font-bold text-slate-600">{recoveryStats.tip}</p>
+
+                                <div className={`p-3 rounded-xl flex gap-2.5 items-center border border-transparent ${recoveryInsight.color}`}>
+                                    <Icon name={recoveryInsight.icon} className="w-4 h-4" />
+                                    <p className="text-[11px] font-bold">{recoveryInsight.text}</p>
                                 </div>
-                                <div className="space-y-3">
-                                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent Activity</h3>
-                                    {logs.slice(0, 4).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
+
+                                <div className="space-y-2.5">
+                                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Recent Activity</h3>
+                                    {logs.slice(0, 3).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
+                                    {logs.length === 0 && <p className="text-center py-4 text-slate-300 text-xs italic">No activity yet</p>}
                                 </div>
                             </div>
                         )}
 
                         {activeTab === 'history' && (
-                            <CalendarView logs={logs} selectedDate={selectedDate} setSelectedDate={setSelectedDate} viewDate={viewDate} setViewDate={setViewDate} deleteLog={deleteLog} />
+                            <div className="space-y-4 animate-in">
+                                <div className="bg-white p-4 rounded-2xl border shadow-sm">
+                                    <div className="flex justify-between items-center mb-3 px-1">
+                                        <h3 className="font-extrabold text-xs uppercase text-slate-500">{viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+                                        <div className="flex gap-1">
+                                            <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()-1)))} className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors"><Icon name="ChevronLeft" /></button>
+                                            <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()+1)))} className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors"><Icon name="ChevronRight" /></button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-0.5 text-center">
+                                        {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[9px] font-bold text-slate-300 py-1">{d}</span>)}
+                                        {Array.from({ length: new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay() }).map((_, i) => <div key={`empty-${i}`} />)}
+                                        {Array.from({ length: new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
+                                            const day = i + 1;
+                                            const dStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                                            const hasLog = logs.some(l => l.date === dStr);
+                                            const isSelected = selectedDate === dStr;
+                                            const isToday = dStr === new Date().toISOString().split('T')[0];
+                                            return (
+                                                <button key={day} onClick={()=>setSelectedDate(dStr)} className={`aspect-square rounded-lg text-xs font-bold flex flex-col items-center justify-center relative ${isSelected ? 'bg-blue-900 text-white' : isToday ? 'text-blue-600 bg-blue-50' : 'text-slate-700 hover:bg-slate-50'}`}>
+                                                    {day}
+                                                    {hasLog && <div className={`w-1 h-1 rounded-full absolute bottom-1 ${isSelected ? 'bg-white' : 'bg-blue-400'}`} />}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase px-1">Activity for {selectedDate}</h4>
+                                    {logs.filter(l => l.date === selectedDate).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
+                                    {logs.filter(l => l.date === selectedDate).length === 0 && <p className="text-center py-4 text-slate-300 text-[11px] italic">Rest day</p>}
+                                </div>
+                            </div>
                         )}
 
-                        {activeTab === 'analytics' && (
-                            <AnalyticsView logs={logs} profile={profile} />
+                        {activeTab === 'analysis' && (
+                            <div className="space-y-5 animate-in">
+                                <div className="bg-white p-6 rounded-3xl border shadow-sm text-center">
+                                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Weekly Goal Progress</h3>
+                                    <div className="relative w-28 h-28 mx-auto flex items-center justify-center mb-4">
+                                        <svg className="w-full h-full -rotate-90">
+                                            <circle cx="56" cy="56" r="50" stroke="#f1f5f9" strokeWidth="8" fill="none" />
+                                            <circle cx="56" cy="56" r="50" stroke="#1e3a8a" strokeWidth="8" fill="none" strokeDasharray="314.15" strokeDashoffset={314.15 - (314.15 * weeklyProgress.percent) / 100} strokeLinecap="round" className="transition-all duration-700" />
+                                        </svg>
+                                        <div className="absolute text-xl font-black text-blue-900">{Math.round(weeklyProgress.percent)}%</div>
+                                    </div>
+                                    <p className="text-lg font-extrabold text-blue-900">{weeklyProgress.mins} / {profile.weeklyGoal}m</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Minutes logged this week</p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-3.5 rounded-2xl border shadow-sm text-center">
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase">Sessions</p>
+                                        <p className="text-lg font-black text-blue-900">{logs.length}</p>
+                                    </div>
+                                    <div className="bg-white p-3.5 rounded-2xl border shadow-sm text-center">
+                                        <p className="text-[9px] font-bold text-slate-400 uppercase">Avg Mins</p>
+                                        <p className="text-lg font-black text-blue-900">
+                                            {logs.length ? Math.round(logs.reduce((a,c)=>a+c.duration,0)/logs.length) : 0}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         )}
 
                         {activeTab === 'profile' && (
-                            <div className="space-y-4 animate-in slide-in-from-bottom-4">
-                                <h2 className="text-xl font-black">Athlete Settings</h2>
-                                <div className="bg-white p-6 rounded-[32px] border space-y-4">
-                                    <input className="w-full p-4 bg-slate-50 rounded-2xl font-bold" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} placeholder="Full Name" />
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <select className="p-4 bg-slate-50 rounded-2xl font-bold appearance-none" value={profile.position} onChange={e=>setProfile({...profile, position: e.target.value})}>
-                                            {HOCKEY_POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                                        </select>
-                                        <input className="p-4 bg-slate-50 rounded-2xl font-bold" value={profile.jerseyNumber} onChange={e=>setProfile({...profile, jerseyNumber: e.target.value})} placeholder="#" />
+                            <div className="space-y-5 animate-in pb-4">
+                                <section className="space-y-3">
+                                    <h2 className="text-sm font-black px-1 uppercase tracking-wider text-slate-500">Athlete Profile</h2>
+                                    <div className="bg-white p-5 rounded-2xl border space-y-4 shadow-sm">
+                                        <div className="space-y-1">
+                                            <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Full Name</label>
+                                            <input className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100 focus:ring-blue-900" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Position</label>
+                                                <select className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={profile.position} onChange={e=>setProfile({...profile, position: e.target.value})}>
+                                                    {['Forward','Midfielder','Defender','Goalkeeper','Utility'].map(p => <option key={p} value={p}>{p}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Jersey #</label>
+                                                <input className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={profile.jerseyNumber} onChange={e=>setProfile({...profile, jerseyNumber: e.target.value})} />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2 pt-1">
+                                            <div className="flex justify-between items-center px-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase">Weekly Goal</label>
+                                                <span className="text-xs font-black text-blue-900">{profile.weeklyGoal}m</span>
+                                            </div>
+                                            <input type="range" min="60" max="600" step="30" value={profile.weeklyGoal} onChange={e=>setProfile({...profile, weeklyGoal: parseInt(e.target.value)})} className="w-full" />
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-black uppercase text-slate-400">Weekly Goal: {profile.weeklyGoal}m</p>
-                                        <input type="range" min="60" max="600" step="30" value={profile.weeklyGoal} onChange={e=>setProfile({...profile, weeklyGoal: parseInt(e.target.value)})} className="w-full" />
+                                </section>
+
+                                <section className="space-y-3">
+                                    <h2 className="text-sm font-black px-1 uppercase tracking-wider text-slate-500">App Settings</h2>
+                                    <div className="bg-white p-3 rounded-2xl border space-y-1 shadow-sm">
+                                        {(!window.matchMedia('(display-mode: standalone)').matches) && (
+                                            <button onClick={handleInstallClick} className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-blue-900">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center"><Icon name="Smartphone" /></div>
+                                                <div className="text-left flex-1">
+                                                    <p className="font-bold text-xs">Install App</p>
+                                                    <p className="text-[9px] text-slate-400">Add to home screen</p>
+                                                </div>
+                                                <Icon name="Plus" className="w-3 h-3" />
+                                            </button>
+                                        )}
+                                        <button onClick={exportData} className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                                            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-600 flex items-center justify-center"><Icon name="Download" /></div>
+                                            <div className="text-left flex-1">
+                                                <p className="font-bold text-xs">Export Backup</p>
+                                                <p className="text-[9px] text-slate-400">Download .json data</p>
+                                            </div>
+                                            <Icon name="ChevronRight" className="text-slate-300 w-3 h-3" />
+                                        </button>
+                                        <button onClick={() => fileInputRef.current.click()} className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-900 flex items-center justify-center"><Icon name="Upload" /></div>
+                                            <div className="text-left flex-1">
+                                                <p className="font-bold text-xs">Restore Backup</p>
+                                                <p className="text-[9px] text-slate-400">Upload .json data</p>
+                                            </div>
+                                            <Icon name="ChevronRight" className="text-slate-300 w-3 h-3" />
+                                        </button>
+                                        <input type="file" ref={fileInputRef} onChange={importData} accept=".json" className="hidden" />
+                                        <div className="pt-2 px-1">
+                                            <button onClick={resetAllData} className="w-full p-2.5 text-rose-500 rounded-xl font-bold text-[10px] uppercase hover:bg-rose-50 transition-colors border border-rose-100">
+                                                Wipe Local Storage
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button onClick={() => {localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile)); setStatusMsg('Saved!')}} className="w-full bg-blue-900 text-white p-4 rounded-2xl font-black shadow-lg">SAVE CHANGES</button>
-                                </div>
+                                </section>
+                                <p className="text-center text-[9px] font-bold text-slate-300 uppercase pb-6">Version 2.3.1-PWA</p>
                             </div>
                         )}
                     </main>
 
-                    <nav className="fixed bottom-6 left-4 right-4 max-w-md mx-auto bg-white/90 backdrop-blur-xl border rounded-[32px] p-2 flex justify-around items-center shadow-2xl z-50">
-                        <NavBtn active={activeTab === 'dashboard'} onClick={()=>setActiveTab('dashboard')} icon="Activity" />
+                    <nav className="fixed bottom-5 left-4 right-4 max-w-md mx-auto bg-white/95 backdrop-blur-sm border rounded-2xl px-2 py-1.5 flex justify-around items-center shadow-lg z-[60]">
+                        <NavBtn active={activeTab === 'dashboard'} onClick={()=>setActiveTab('dashboard')} icon="Home" />
                         <NavBtn active={activeTab === 'history'} onClick={()=>setActiveTab('history')} icon="Calendar" />
-                        <button onClick={()=>setShowAddModal(true)} className="bg-blue-900 text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg active:scale-90 transition-transform"><Icon name="Plus" /></button>
-                        <NavBtn active={activeTab === 'analytics'} onClick={()=>setActiveTab('analytics')} icon="BarChart3" />
-                        <NavBtn active={activeTab === 'profile'} onClick={()=>setActiveTab('profile')} icon="User" />
+                        <button onClick={()=>setShowAddModal(true)} className="bg-blue-900 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all mx-1"><Icon name="Plus" className="w-5 h-5" /></button>
+                        <NavBtn active={activeTab === 'analysis'} onClick={()=>setActiveTab('analysis')} icon="PieChart" />
+                        <NavBtn active={activeTab === 'profile'} onClick={()=>setActiveTab('profile')} icon="Settings" />
                     </nav>
 
-                    {showAddModal && <Modal newLog={newLog} setNewLog={setNewLog} addLog={addLog} onClose={()=>setShowAddModal(false)} />}
+                    {showAddModal && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[100] flex items-end sm:items-center justify-center p-4">
+                            <div className="bg-white w-full max-sm:rounded-t-3xl sm:rounded-3xl p-6 space-y-4 animate-in">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-sm font-black uppercase tracking-widest text-slate-500">Log Activity</h2>
+                                    <button onClick={()=>setShowAddModal(false)} className="p-1 text-slate-300"><Icon name="X" /></button>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {EXERCISE_TYPES.map(t => (
+                                        <button key={t.id} onClick={()=>setNewLog({...newLog, type:t.id})} className={`p-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${newLog.type === t.id ? 'border-blue-900 bg-blue-50 text-blue-900' : 'border-slate-100 bg-slate-50 text-slate-400'}`}>
+                                            <span className="text-base">{t.icon}</span>
+                                            <span className="text-[9px] font-bold uppercase">{t.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Date</label>
+                                        <input type="date" className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={newLog.date} onChange={e=>setNewLog({...newLog, date: e.target.value})} />
+                                    </div>
+                                    {newLog.type !== 'rest' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Duration (Mins)</label>
+                                                <input type="number" className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" placeholder="0" value={newLog.duration} onChange={e=>setNewLog({...newLog, duration:e.target.value})} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Intensity</label>
+                                                <select className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border-none ring-1 ring-slate-100" value={newLog.intensity} onChange={e=>setNewLog({...newLog, intensity:e.target.value})}>
+                                                    {INTENSITY_LEVELS.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <button onClick={addLog} className="w-full bg-blue-900 text-white p-3.5 rounded-xl font-black shadow-lg uppercase text-[11px] tracking-widest mt-2 active:scale-95 transition-transform">Save Activity</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
 
         const NavBtn = ({ active, onClick, icon }) => (
-            <button onClick={onClick} className={`p-3 rounded-2xl transition-all ${active ? 'bg-blue-900 text-white shadow-md' : 'text-slate-400'}`}>
-                <Icon name={icon} />
+            <button onClick={onClick} className={`p-2.5 rounded-xl transition-all ${active ? 'bg-blue-900 text-white shadow-sm' : 'text-slate-300 hover:text-blue-900'}`}>
+                <Icon name={icon} className="w-5 h-5" />
             </button>
-        );
-
-        const LogItem = ({ log, onDelete }) => {
-            const type = EXERCISE_TYPES.find(t => t.id === log.type) || {};
-            return (
-                <div className="bg-white p-4 rounded-2xl border flex items-center justify-between group">
-                    <div className="flex items-center gap-3">
-                        <span className="text-xl">{type.icon}</span>
-                        <div>
-                            <p className="font-black text-sm">{type.name}</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">{log.date} • {log.duration}m</p>
-                        </div>
-                    </div>
-                    <button onClick={()=>onDelete(log.id)} className="text-slate-200 group-hover:text-rose-500"><Icon name="Trash2" className="w-4 h-4" /></button>
-                </div>
-            );
-        };
-
-        const CalendarView = ({ logs, selectedDate, setSelectedDate, viewDate, setViewDate, deleteLog }) => {
-            const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
-            const startDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
-            const days = Array.from({ length: startDay }, () => null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
-
-            return (
-                <div className="space-y-4 animate-in fade-in">
-                    <div className="bg-white p-4 rounded-[32px] border">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-black text-sm">{viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-                            <div className="flex gap-2">
-                                <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()-1)))}><Icon name="ChevronLeft" /></button>
-                                <button onClick={()=>setViewDate(new Date(viewDate.setMonth(viewDate.getMonth()+1)))}><Icon name="ChevronRight" /></button>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-7 gap-1 text-center">
-                            {['S','M','T','W','T','F','S'].map(d => <span key={d} className="text-[8px] font-black text-slate-300">{d}</span>)}
-                            {days.map((d, i) => {
-                                if (!d) return <div key={i} />;
-                                const dStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                                const hasLog = logs.some(l => l.date === dStr);
-                                return (
-                                    <button key={i} onClick={()=>setSelectedDate(dStr)} className={`aspect-square rounded-xl text-xs font-bold flex items-center justify-center relative ${selectedDate === dStr ? 'bg-blue-900 text-white' : 'hover:bg-slate-50'}`}>
-                                        {d} {hasLog && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-current opacity-50" />}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        {logs.filter(l => l.date === selectedDate).map(log => <LogItem key={log.id} log={log} onDelete={deleteLog} />)}
-                    </div>
-                </div>
-            );
-        };
-
-        const AnalyticsView = ({ logs, profile }) => {
-            const currentWeek = getWeekIdentifier(new Date());
-            const thisWeekMins = logs.filter(l => getWeekIdentifier(l.date) === currentWeek).reduce((a,c)=>a+c.duration,0);
-            const progress = Math.min(100, (thisWeekMins / profile.weeklyGoal) * 100);
-
-            return (
-                <div className="space-y-6 animate-in fade-in">
-                    <div className="bg-white p-8 rounded-[40px] border text-center space-y-4">
-                        <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
-                            <svg className="w-full h-full -rotate-90">
-                                <circle cx="64" cy="64" r="58" stroke="#f1f5f9" strokeWidth="12" fill="none" />
-                                <circle cx="64" cy="64" r="58" stroke="#1e3a8a" strokeWidth="12" fill="none" strokeDasharray="364.4" strokeDashoffset={364.4 - (364.4 * progress) / 100} strokeLinecap="round" />
-                            </svg>
-                            <div className="absolute">
-                                <p className="text-2xl font-black">{Math.round(progress)}%</p>
-                                <p className="text-[8px] font-black text-slate-400 uppercase">Weekly Goal</p>
-                            </div>
-                        </div>
-                        <h3 className="text-xl font-black">{thisWeekMins} / {profile.weeklyGoal}m</h3>
-                    </div>
-                </div>
-            );
-        };
-
-        const Modal = ({ newLog, setNewLog, addLog, onClose }) => (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
-                <div className="bg-white w-full max-w-sm rounded-[40px] p-8 space-y-4 animate-in slide-in-from-bottom-10">
-                    <h2 className="text-xl font-black">Track Exercise</h2>
-                    <div className="grid grid-cols-2 gap-2">
-                        {EXERCISE_TYPES.map(t => (
-                            <button key={t.id} onClick={()=>setNewLog({...newLog, type:t.id})} className={`p-3 rounded-2xl border flex items-center gap-2 ${newLog.type === t.id ? 'border-blue-900 bg-blue-50' : 'border-slate-50 bg-slate-50'}`}>
-                                <span>{t.icon}</span> <span className="text-[10px] font-black">{t.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                    <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl font-bold" value={newLog.date} onChange={e=>setNewLog({...newLog, date: e.target.value})} />
-                    {newLog.type !== 'rest' && (
-                        <div className="flex gap-2">
-                            <input type="number" className="flex-1 p-4 bg-slate-50 rounded-2xl font-bold" placeholder="Mins" value={newLog.duration} onChange={e=>setNewLog({...newLog, duration:e.target.value})} />
-                            <select className="flex-1 p-4 bg-slate-50 rounded-2xl font-bold" value={newLog.intensity} onChange={e=>setNewLog({...newLog, intensity:e.target.value})}>
-                                {INTENSITY_LEVELS.filter(i=>i.id!=='none').map(i=><option key={i.id} value={i.id}>{i.name}</option>)}
-                            </select>
-                        </div>
-                    )}
-                    <div className="flex gap-2 pt-4">
-                        <button onClick={onClose} className="flex-1 font-bold text-slate-400">Cancel</button>
-                        <button onClick={addLog} className="flex-1 bg-blue-900 text-white p-4 rounded-2xl font-black shadow-lg">LOG IT</button>
-                    </div>
-                </div>
-            </div>
         );
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-
-        // Fix: Do not attempt to register a Service Worker via Blob URL in this environment
-        // Browsers block blob service workers for security/protocol reasons.
-        // On a real host like GitHub Pages, you should use a separate 'sw.js' file.
-        if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-            // Only attempt registration if we are on a real host, not a preview environment.
-            // For GitHub Pages, the user should ideally have a real sw.js file.
-            // Since this is a single-file delivery, we omit the auto-blob registration to prevent the error.
-        }
     </script>
 </body>
 </html>
