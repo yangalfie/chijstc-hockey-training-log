@@ -12,9 +12,9 @@
     <meta name="application-name" content="STC Hockey">
     <meta name="msapplication-TileColor" content="#1e3a8a">
     <meta name="msapplication-tap-highlight" content="no">
-    <link rel="apple-touch-icon" href="https://www.chijsttheresasconvent.moe.edu.sg/images/logo.png">
-    <link rel="icon" type="image/png" href="https://www.chijsttheresasconvent.moe.edu.sg/images/logo.png">
-    <link rel="manifest" href='data:application/json;charset=utf-8,%7B%22name%22%3A%22STC%20Hockey%20Tracker%22%2C%22short_name%22%3A%22STC%20Hockey%22%2C%22description%22%3A%22Track%20your%20hockey%20training%20and%20performance%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22fullscreen%22%2C%22display_override%22%3A%5B%22fullscreen%22%2C%22standalone%22%2C%22minimal-ui%22%5D%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%231e3a8a%22%2C%22categories%22%3A%5B%22sports%22%2C%22fitness%22%5D%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D'>
+    <link rel="apple-touch-icon" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
+    <link rel="icon" type="image/png" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
+    <link rel="manifest" href='data:application/json;charset=utf-8,%7B%22name%22%3A%22STC%20Hockey%20Tracker%22%2C%22short_name%22%3A%22STC%20Hockey%22%2C%22description%22%3A%22Track%20your%20hockey%20training%20and%20performance%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22display_override%22%3A%5B%22standalone%22%2C%22minimal-ui%22%5D%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%231e3a8a%22%2C%22categories%22%3A%5B%22sports%22%2C%22fitness%22%5D%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D'>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -772,8 +772,59 @@
                                     logs.length ? Math.round(logs.reduce(function(a, c) { return a + c.duration; }, 0) / logs.length) : 0
                                 )
                             )
+                        )
+                    );
+                }
+
+                // New Goals Tab - Weekly Goal History
+                function renderGoals() {
+                    // Calculate overall stats
+                    var allPastWeeks = weeklyHistory.filter(function(w) { return !w.isCurrent; });
+                    var totalGoalsMet = allPastWeeks.filter(function(w) { return w.goalMet; }).length;
+                    var totalWeeks = allPastWeeks.length;
+                    var successRate = totalWeeks > 0 ? Math.round((totalGoalsMet / totalWeeks) * 100) : 0;
+
+                    return h('div', { className: "space-y-5 animate-in" },
+                        // Header Stats
+                        h('div', { className: "bg-white p-5 rounded-2xl border shadow-sm" },
+                            h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 text-center" }, "Goal Achievement"),
+                            h('div', { className: "grid grid-cols-3 gap-3" },
+                                h('div', { className: "text-center" },
+                                    h('div', { className: "w-10 h-10 mx-auto rounded-full bg-emerald-100 flex items-center justify-center mb-1" },
+                                        h(Icon, { name: "Check", className: "w-5 h-5 text-emerald-600" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-emerald-600" }, totalGoalsMet),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Goals Met")
+                                ),
+                                h('div', { className: "text-center" },
+                                    h('div', { className: "w-10 h-10 mx-auto rounded-full bg-rose-100 flex items-center justify-center mb-1" },
+                                        h(Icon, { name: "X", className: "w-5 h-5 text-rose-500" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-rose-500" }, totalWeeks - totalGoalsMet),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Missed")
+                                ),
+                                h('div', { className: "text-center" },
+                                    h('div', { className: "w-10 h-10 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-1" },
+                                        h(Icon, { name: "Target", className: "w-5 h-5 text-blue-600" })
+                                    ),
+                                    h('p', { className: "text-lg font-black text-blue-600" }, successRate + "%"),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Success")
+                                )
+                            )
                         ),
-                        // Weekly History Section
+                        // Weekly Goal Info
+                        h('div', { className: "bg-blue-900 p-4 rounded-2xl text-white" },
+                            h('div', { className: "flex items-center justify-between" },
+                                h('div', null,
+                                    h('p', { className: "text-[9px] font-bold opacity-70 uppercase" }, "Current Weekly Goal"),
+                                    h('p', { className: "text-xl font-extrabold" }, profile.weeklyGoal + " minutes")
+                                ),
+                                h('div', { className: "bg-white/20 p-3 rounded-xl" },
+                                    h(Icon, { name: "Target", className: "w-6 h-6" })
+                                )
+                            )
+                        ),
+                        // Monthly History
                         h('div', { className: "space-y-3" },
                             h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Weekly Goal History"),
                             weeksByMonth.length > 0
@@ -781,6 +832,216 @@
                                     return renderMonthGroup(monthData);
                                 })
                                 : h('p', { className: "text-center py-4 text-slate-300 text-xs italic" }, "No weekly history yet")
+                        )
+                    );
+                }
+
+                // Recovery Tab - Rest analysis and injury prevention
+                function renderRecovery() {
+                    var today = new Date();
+                    var currentWeek = getWeekIdentifier(today);
+                    var currentMonth = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+
+                    // All recovery/rest logs
+                    var allRestLogs = logs.filter(function(l) { return l.type === 'rest' || l.type === 'recovery'; });
+                    var allRecoveryLogs = logs.filter(function(l) { return l.type === 'recovery'; });
+
+                    // This week's rest
+                    var weekRestLogs = logs.filter(function(l) {
+                        return (l.type === 'rest' || l.type === 'recovery') && getWeekIdentifier(l.date) === currentWeek;
+                    });
+
+                    // This month's rest
+                    var monthRestLogs = logs.filter(function(l) {
+                        var logMonth = l.date.substring(0, 7);
+                        return (l.type === 'rest' || l.type === 'recovery') && logMonth === currentMonth;
+                    });
+
+                    // Last 30 days analysis
+                    var last30Days = logs.filter(function(l) {
+                        return (today - new Date(l.date)) / (1000 * 3600 * 24) <= 30;
+                    });
+                    var last30RestDays = last30Days.filter(function(l) { return l.type === 'rest' || l.type === 'recovery'; });
+                    var last30HighIntensity = last30Days.filter(function(l) { return l.intensity === 'high'; });
+                    var last30Training = last30Days.filter(function(l) { return l.type !== 'rest' && l.type !== 'recovery'; });
+
+                    // Calculate recovery ratio
+                    var totalActiveDays = last30Training.length;
+                    var totalRestDays = last30RestDays.length;
+                    var recoveryRatio = totalActiveDays > 0 ? (totalRestDays / totalActiveDays * 100).toFixed(0) : 0;
+
+                    // Consecutive training days (injury risk)
+                    var consecutiveTraining = 0;
+                    var maxConsecutive = 0;
+                    var sortedLogs = logs.slice().sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+                    for (var i = 0; i < Math.min(sortedLogs.length, 14); i++) {
+                        if (sortedLogs[i].type !== 'rest' && sortedLogs[i].type !== 'recovery') {
+                            consecutiveTraining++;
+                            maxConsecutive = Math.max(maxConsecutive, consecutiveTraining);
+                        } else {
+                            consecutiveTraining = 0;
+                        }
+                    }
+
+                    // Generate suggestions based on patterns
+                    var suggestions = [];
+                    if (last30HighIntensity.length >= 10 && totalRestDays < 4) {
+                        suggestions.push({ type: 'warning', icon: 'AlertTriangle', text: 'High training load detected. Consider adding more rest days to prevent overtraining.' });
+                    }
+                    if (consecutiveTraining >= 5) {
+                        suggestions.push({ type: 'danger', icon: 'AlertCircle', text: 'You have trained ' + consecutiveTraining + ' days in a row. Take a rest day to reduce injury risk.' });
+                    }
+                    if (totalRestDays === 0 && last30Training.length > 0) {
+                        suggestions.push({ type: 'warning', icon: 'AlertTriangle', text: 'No rest days logged this month. Rest is essential for muscle recovery.' });
+                    }
+                    if (recoveryRatio < 15 && totalActiveDays > 5) {
+                        suggestions.push({ type: 'info', icon: 'Info', text: 'Aim for 1 rest day per 5-6 training days for optimal recovery.' });
+                    }
+                    if (allRecoveryLogs.length === 0 && last30Training.length > 10) {
+                        suggestions.push({ type: 'info', icon: 'Lightbulb', text: 'Try adding active recovery sessions (stretching, yoga) to improve flexibility.' });
+                    }
+                    if (suggestions.length === 0 && totalRestDays >= 1) {
+                        suggestions.push({ type: 'success', icon: 'CheckCircle', text: 'Great job! Your recovery schedule looks balanced.' });
+                    }
+                    if (suggestions.length === 0) {
+                        suggestions.push({ type: 'info', icon: 'Info', text: 'Start logging rest days to get personalized recovery insights.' });
+                    }
+
+                    // Recovery type breakdown
+                    var restTypeCount = allRestLogs.filter(function(l) { return l.type === 'rest'; }).length;
+                    var recoveryTypeCount = allRecoveryLogs.length;
+
+                    return h('div', { className: "space-y-5 animate-in" },
+                        // Recovery Score Card
+                        h('div', { className: "bg-gradient-to-br from-purple-600 to-indigo-700 p-5 rounded-2xl text-white shadow-lg" },
+                            h('div', { className: "flex items-center justify-between" },
+                                h('div', null,
+                                    h('p', { className: "text-[9px] font-bold opacity-70 uppercase tracking-widest" }, "Recovery Status"),
+                                    h('p', { className: "text-2xl font-extrabold mt-1" },
+                                        consecutiveTraining >= 5 ? "Rest Needed" :
+                                        totalRestDays >= 4 ? "Well Rested" :
+                                        totalRestDays >= 1 ? "Moderate" : "Low Recovery"
+                                    ),
+                                    h('p', { className: "text-[10px] opacity-80 mt-1" }, recoveryRatio + "% rest-to-training ratio")
+                                ),
+                                h('div', { className: "bg-white/20 p-4 rounded-xl" },
+                                    h(Icon, { name: "Moon", className: "w-8 h-8" })
+                                )
+                            )
+                        ),
+
+                        // This Week & Month Stats
+                        h('div', { className: "grid grid-cols-2 gap-3" },
+                            h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm text-center" },
+                                h('div', { className: "w-10 h-10 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-2" },
+                                    h(Icon, { name: "Calendar", className: "w-5 h-5 text-purple-600" })
+                                ),
+                                h('p', { className: "text-2xl font-black text-purple-600" }, weekRestLogs.length),
+                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Rest This Week")
+                            ),
+                            h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm text-center" },
+                                h('div', { className: "w-10 h-10 mx-auto rounded-full bg-indigo-100 flex items-center justify-center mb-2" },
+                                    h(Icon, { name: "CalendarDays", className: "w-5 h-5 text-indigo-600" })
+                                ),
+                                h('p', { className: "text-2xl font-black text-indigo-600" }, monthRestLogs.length),
+                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Rest This Month")
+                            )
+                        ),
+
+                        // Recovery Type Breakdown
+                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Recovery Breakdown (All Time)"),
+                            h('div', { className: "grid grid-cols-2 gap-3" },
+                                h('div', { className: "flex items-center gap-3 p-3 bg-slate-50 rounded-xl" },
+                                    h('span', { className: "text-xl" }, "😴"),
+                                    h('div', null,
+                                        h('p', { className: "text-lg font-black text-slate-700" }, restTypeCount),
+                                        h('p', { className: "text-[9px] text-slate-400" }, "Full Rest Days")
+                                    )
+                                ),
+                                h('div', { className: "flex items-center gap-3 p-3 bg-slate-50 rounded-xl" },
+                                    h('span', { className: "text-xl" }, "🧘"),
+                                    h('div', null,
+                                        h('p', { className: "text-lg font-black text-slate-700" }, recoveryTypeCount),
+                                        h('p', { className: "text-[9px] text-slate-400" }, "Active Recovery")
+                                    )
+                                )
+                            ),
+                            // Total rest time from recovery sessions
+                            allRecoveryLogs.length > 0 && h('div', { className: "mt-3 pt-3 border-t border-slate-100 flex items-center justify-between" },
+                                h('span', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Total Recovery Time"),
+                                h('span', { className: "text-sm font-black text-purple-600" },
+                                    allRecoveryLogs.reduce(function(a, c) { return a + c.duration; }, 0) + " mins"
+                                )
+                            )
+                        ),
+
+                        // Training Load (Last 30 Days)
+                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Last 30 Days Load"),
+                            h('div', { className: "grid grid-cols-3 gap-2" },
+                                h('div', { className: "text-center p-2 bg-blue-50 rounded-xl" },
+                                    h('p', { className: "text-lg font-black text-blue-600" }, last30Training.length),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Training")
+                                ),
+                                h('div', { className: "text-center p-2 bg-orange-50 rounded-xl" },
+                                    h('p', { className: "text-lg font-black text-orange-600" }, last30HighIntensity.length),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "High Int.")
+                                ),
+                                h('div', { className: "text-center p-2 bg-purple-50 rounded-xl" },
+                                    h('p', { className: "text-lg font-black text-purple-600" }, totalRestDays),
+                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Rest")
+                                )
+                            ),
+                            // Consecutive training warning
+                            consecutiveTraining > 0 && h('div', { className: "mt-3 pt-3 border-t border-slate-100" },
+                                h('div', { className: "flex items-center gap-2" },
+                                    h(Icon, { name: consecutiveTraining >= 5 ? "AlertTriangle" : "Activity", className: "w-4 h-4 " + (consecutiveTraining >= 5 ? 'text-rose-500' : 'text-slate-400') }),
+                                    h('span', { className: "text-[10px] " + (consecutiveTraining >= 5 ? 'text-rose-500 font-bold' : 'text-slate-500') },
+                                        consecutiveTraining + " consecutive training day" + (consecutiveTraining > 1 ? 's' : '')
+                                    )
+                                )
+                            )
+                        ),
+
+                        // Suggestions & Tips
+                        h('div', { className: "space-y-2" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Recovery Insights"),
+                            suggestions.map(function(s, i) {
+                                var bgColor = s.type === 'danger' ? 'bg-rose-50' : s.type === 'warning' ? 'bg-amber-50' : s.type === 'success' ? 'bg-emerald-50' : 'bg-blue-50';
+                                var textColor = s.type === 'danger' ? 'text-rose-600' : s.type === 'warning' ? 'text-amber-600' : s.type === 'success' ? 'text-emerald-600' : 'text-blue-600';
+                                return h('div', { key: i, className: "flex items-start gap-3 p-3 rounded-xl " + bgColor },
+                                    h(Icon, { name: s.icon, className: "w-4 h-4 mt-0.5 flex-shrink-0 " + textColor }),
+                                    h('p', { className: "text-[11px] " + textColor }, s.text)
+                                );
+                            })
+                        ),
+
+                        // Injury Prevention Tips
+                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Injury Prevention Tips"),
+                            h('div', { className: "space-y-2" },
+                                h('div', { className: "flex items-start gap-2" },
+                                    h('span', { className: "text-sm" }, "💧"),
+                                    h('p', { className: "text-[10px] text-slate-600" }, "Stay hydrated - drink water before, during, and after training")
+                                ),
+                                h('div', { className: "flex items-start gap-2" },
+                                    h('span', { className: "text-sm" }, "🔥"),
+                                    h('p', { className: "text-[10px] text-slate-600" }, "Always warm up for 10-15 mins before intense sessions")
+                                ),
+                                h('div', { className: "flex items-start gap-2" },
+                                    h('span', { className: "text-sm" }, "🧊"),
+                                    h('p', { className: "text-[10px] text-slate-600" }, "Cool down and stretch after training to prevent muscle tightness")
+                                ),
+                                h('div', { className: "flex items-start gap-2" },
+                                    h('span', { className: "text-sm" }, "😴"),
+                                    h('p', { className: "text-[10px] text-slate-600" }, "Aim for 8+ hours of sleep for optimal muscle recovery")
+                                ),
+                                h('div', { className: "flex items-start gap-2" },
+                                    h('span', { className: "text-sm" }, "🥗"),
+                                    h('p', { className: "text-[10px] text-slate-600" }, "Eat protein within 30 mins post-workout for muscle repair")
+                                )
+                            )
                         )
                     );
                 }
@@ -974,20 +1235,31 @@
                         activeTab === 'dashboard' && renderDashboard(),
                         activeTab === 'history' && renderHistory(),
                         activeTab === 'analysis' && renderAnalysis(),
+                        activeTab === 'goals' && renderGoals(),
+                        activeTab === 'recovery' && renderRecovery(),
                         activeTab === 'profile' && renderProfile()
                     ),
                     h('nav', {
-                        className: "fixed bottom-5 left-4 right-4 max-w-md mx-auto bg-white/95 backdrop-blur-sm border rounded-2xl px-2 py-1.5 flex justify-around items-center shadow-lg z-[60]",
+                        className: "fixed bottom-5 left-4 right-4 max-w-md mx-auto bg-white/95 backdrop-blur-sm border rounded-2xl px-2 py-1.5 flex items-center shadow-lg z-[60]",
                         style: { marginBottom: 'env(safe-area-inset-bottom)' }
                     },
-                        h(NavBtn, { active: activeTab === 'dashboard', onClick: function() { setActiveTab('dashboard'); }, icon: "Home" }),
-                        h(NavBtn, { active: activeTab === 'history', onClick: function() { setActiveTab('history'); }, icon: "Calendar" }),
+                        // Left side - 3 buttons
+                        h('div', { className: "flex-1 flex justify-evenly" },
+                            h(NavBtn, { active: activeTab === 'dashboard', onClick: function() { setActiveTab('dashboard'); }, icon: "Home" }),
+                            h(NavBtn, { active: activeTab === 'history', onClick: function() { setActiveTab('history'); }, icon: "Calendar" }),
+                            h(NavBtn, { active: activeTab === 'analysis', onClick: function() { setActiveTab('analysis'); }, icon: "PieChart" })
+                        ),
+                        // Center - Add button
                         h('button', {
                             onClick: function() { setShowAddModal(true); },
-                            className: "bg-blue-900 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all mx-1"
+                            className: "bg-blue-900 text-white w-11 h-11 rounded-xl flex items-center justify-center shadow-md active:scale-90 transition-all mx-2 flex-shrink-0"
                         }, h(Icon, { name: "Plus", className: "w-5 h-5" })),
-                        h(NavBtn, { active: activeTab === 'analysis', onClick: function() { setActiveTab('analysis'); }, icon: "PieChart" }),
-                        h(NavBtn, { active: activeTab === 'profile', onClick: function() { setActiveTab('profile'); }, icon: "Settings" })
+                        // Right side - 3 buttons
+                        h('div', { className: "flex-1 flex justify-evenly" },
+                            h(NavBtn, { active: activeTab === 'goals', onClick: function() { setActiveTab('goals'); }, icon: "Target" }),
+                            h(NavBtn, { active: activeTab === 'recovery', onClick: function() { setActiveTab('recovery'); }, icon: "Heart" }),
+                            h(NavBtn, { active: activeTab === 'profile', onClick: function() { setActiveTab('profile'); }, icon: "Settings" })
+                        )
                     ),
                     renderAddModal(),
                     confirmDialog && h(ConfirmDialog, {
