@@ -12,9 +12,9 @@
     <meta name="application-name" content="STC Hockey">
     <meta name="msapplication-TileColor" content="#1e3a8a">
     <meta name="msapplication-tap-highlight" content="no">
-    <link rel="apple-touch-icon" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
-    <link rel="icon" type="image/png" href="https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png">
-    <link rel="manifest" href='data:application/json;charset=utf-8,%7B%22name%22%3A%22STC%20Hockey%20Tracker%22%2C%22short_name%22%3A%22STC%20Hockey%22%2C%22description%22%3A%22Track%20your%20hockey%20training%20and%20performance%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22display_override%22%3A%5B%22standalone%22%2C%22minimal-ui%22%5D%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%231e3a8a%22%2C%22categories%22%3A%5B%22sports%22%2C%22fitness%22%5D%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fwww.chijourladyofgoodcounsel.moe.edu.sg%2Fimages%2FCHIJOLGC%2520Crest.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D'>
+    <link rel="apple-touch-icon" href="https://www.chijsttheresasconvent.moe.edu.sg/images/logo.png">
+    <link rel="icon" type="image/png" href="https://www.chijsttheresasconvent.moe.edu.sg/images/logo.png">
+    <link rel="manifest" href='data:application/json;charset=utf-8,%7B%22name%22%3A%22STC%20Hockey%20Tracker%22%2C%22short_name%22%3A%22STC%20Hockey%22%2C%22description%22%3A%22Track%20your%20hockey%20training%20and%20performance%22%2C%22start_url%22%3A%22.%22%2C%22scope%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22display_override%22%3A%5B%22standalone%22%2C%22minimal-ui%22%5D%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23f8fafc%22%2C%22theme_color%22%3A%22%231e3a8a%22%2C%22categories%22%3A%5B%22sports%22%2C%22fitness%22%5D%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fwww.chijsttheresasconvent.moe.edu.sg%2Fimages%2Flogo.png%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fwww.chijsttheresasconvent.moe.edu.sg%2Fimages%2Flogo.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%2C%22purpose%22%3A%22any%20maskable%22%7D%5D%7D'>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -75,7 +75,7 @@
                 }
             };
 
-            var LOGO_URL = "https://www.chijourladyofgoodcounsel.moe.edu.sg/images/CHIJOLGC%20Crest.png";
+            var LOGO_URL = "https://www.chijsttheresasconvent.moe.edu.sg/images/logo.png";
             var STORAGE_KEY_LOGS = "stc_hockey_logs_vfinal";
             var STORAGE_KEY_PROFILE = "stc_hockey_profile_vfinal";
 
@@ -260,6 +260,22 @@
                 var standaloneState = useState(false);
                 var isStandalone = standaloneState[0];
                 var setIsStandalone = standaloneState[1];
+
+                var bugReportState = useState(false);
+                var showBugReport = bugReportState[0];
+                var setShowBugReport = bugReportState[1];
+
+                var splashState = useState(true);
+                var showSplash = splashState[0];
+                var setShowSplash = splashState[1];
+
+                useEffect(function() {
+                    // Hide splash after 1.5 seconds
+                    var splashTimer = setTimeout(function() {
+                        setShowSplash(false);
+                    }, 1500);
+                    return function() { clearTimeout(splashTimer); };
+                }, []);
 
                 useEffect(function() {
                     var standalone = window.matchMedia('(display-mode: standalone)').matches ||
@@ -911,137 +927,110 @@
                     var restTypeCount = allRestLogs.filter(function(l) { return l.type === 'rest'; }).length;
                     var recoveryTypeCount = allRecoveryLogs.length;
 
-                    return h('div', { className: "space-y-5 animate-in" },
-                        // Recovery Score Card
-                        h('div', { className: "bg-gradient-to-br from-purple-600 to-indigo-700 p-5 rounded-2xl text-white shadow-lg" },
+                    return h('div', { className: "space-y-3 animate-in" },
+                        // Recovery Score Card - Compact
+                        h('div', { className: "bg-gradient-to-br from-purple-600 to-indigo-700 p-3 rounded-xl text-white shadow-lg" },
                             h('div', { className: "flex items-center justify-between" },
                                 h('div', null,
-                                    h('p', { className: "text-[9px] font-bold opacity-70 uppercase tracking-widest" }, "Recovery Status"),
-                                    h('p', { className: "text-2xl font-extrabold mt-1" },
+                                    h('p', { className: "text-[8px] font-bold opacity-70 uppercase tracking-widest" }, "Recovery Status"),
+                                    h('p', { className: "text-lg font-extrabold" },
                                         consecutiveTraining >= 5 ? "Rest Needed" :
                                         totalRestDays >= 4 ? "Well Rested" :
                                         totalRestDays >= 1 ? "Moderate" : "Low Recovery"
                                     ),
-                                    h('p', { className: "text-[10px] opacity-80 mt-1" }, recoveryRatio + "% rest-to-training ratio")
+                                    h('p', { className: "text-[9px] opacity-80" }, recoveryRatio + "% rest-to-training ratio")
                                 ),
-                                h('div', { className: "bg-white/20 p-4 rounded-xl" },
-                                    h(Icon, { name: "Moon", className: "w-8 h-8" })
+                                h('div', { className: "bg-white/20 p-2.5 rounded-lg" },
+                                    h(Icon, { name: "Moon", className: "w-6 h-6" })
                                 )
                             )
                         ),
 
-                        // This Week & Month Stats
-                        h('div', { className: "grid grid-cols-2 gap-3" },
-                            h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm text-center" },
-                                h('div', { className: "w-10 h-10 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-2" },
-                                    h(Icon, { name: "Calendar", className: "w-5 h-5 text-purple-600" })
+                        // This Week & Month Stats - Compact
+                        h('div', { className: "grid grid-cols-2 gap-2" },
+                            h('div', { className: "bg-white p-3 rounded-xl border shadow-sm text-center" },
+                                h('div', { className: "w-8 h-8 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-1" },
+                                    h(Icon, { name: "Calendar", className: "w-4 h-4 text-purple-600" })
                                 ),
-                                h('p', { className: "text-2xl font-black text-purple-600" }, weekRestLogs.length),
-                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Rest This Week")
+                                h('p', { className: "text-xl font-black text-purple-600" }, weekRestLogs.length),
+                                h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Rest This Week")
                             ),
-                            h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm text-center" },
-                                h('div', { className: "w-10 h-10 mx-auto rounded-full bg-indigo-100 flex items-center justify-center mb-2" },
-                                    h(Icon, { name: "CalendarDays", className: "w-5 h-5 text-indigo-600" })
+                            h('div', { className: "bg-white p-3 rounded-xl border shadow-sm text-center" },
+                                h('div', { className: "w-8 h-8 mx-auto rounded-full bg-indigo-100 flex items-center justify-center mb-1" },
+                                    h(Icon, { name: "CalendarDays", className: "w-4 h-4 text-indigo-600" })
                                 ),
-                                h('p', { className: "text-2xl font-black text-indigo-600" }, monthRestLogs.length),
-                                h('p', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Rest This Month")
+                                h('p', { className: "text-xl font-black text-indigo-600" }, monthRestLogs.length),
+                                h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Rest This Month")
                             )
                         ),
 
-                        // Recovery Type Breakdown
-                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
-                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Recovery Breakdown (All Time)"),
-                            h('div', { className: "grid grid-cols-2 gap-3" },
-                                h('div', { className: "flex items-center gap-3 p-3 bg-slate-50 rounded-xl" },
-                                    h('span', { className: "text-xl" }, "😴"),
+                        // Recovery Type Breakdown - Compact
+                        h('div', { className: "bg-white p-3 rounded-xl border shadow-sm" },
+                            h('h4', { className: "text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2" }, "Recovery Breakdown (All Time)"),
+                            h('div', { className: "grid grid-cols-2 gap-2" },
+                                h('div', { className: "flex items-center gap-2 p-2 bg-slate-50 rounded-lg" },
+                                    h('span', { className: "text-base" }, "😴"),
                                     h('div', null,
-                                        h('p', { className: "text-lg font-black text-slate-700" }, restTypeCount),
-                                        h('p', { className: "text-[9px] text-slate-400" }, "Full Rest Days")
+                                        h('p', { className: "text-sm font-black text-slate-700" }, restTypeCount),
+                                        h('p', { className: "text-[8px] text-slate-400" }, "Full Rest Days")
                                     )
                                 ),
-                                h('div', { className: "flex items-center gap-3 p-3 bg-slate-50 rounded-xl" },
-                                    h('span', { className: "text-xl" }, "🧘"),
+                                h('div', { className: "flex items-center gap-2 p-2 bg-slate-50 rounded-lg" },
+                                    h('span', { className: "text-base" }, "🧘"),
                                     h('div', null,
-                                        h('p', { className: "text-lg font-black text-slate-700" }, recoveryTypeCount),
-                                        h('p', { className: "text-[9px] text-slate-400" }, "Active Recovery")
+                                        h('p', { className: "text-sm font-black text-slate-700" }, recoveryTypeCount),
+                                        h('p', { className: "text-[8px] text-slate-400" }, "Active Recovery")
                                     )
                                 )
                             ),
                             // Total rest time from recovery sessions
-                            allRecoveryLogs.length > 0 && h('div', { className: "mt-3 pt-3 border-t border-slate-100 flex items-center justify-between" },
-                                h('span', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Total Recovery Time"),
-                                h('span', { className: "text-sm font-black text-purple-600" },
+                            allRecoveryLogs.length > 0 && h('div', { className: "mt-2 pt-2 border-t border-slate-100 flex items-center justify-between" },
+                                h('span', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Total Recovery Time"),
+                                h('span', { className: "text-xs font-black text-purple-600" },
                                     allRecoveryLogs.reduce(function(a, c) { return a + c.duration; }, 0) + " mins"
                                 )
                             )
                         ),
 
-                        // Training Load (Last 30 Days)
-                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
-                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Last 30 Days Load"),
-                            h('div', { className: "grid grid-cols-3 gap-2" },
-                                h('div', { className: "text-center p-2 bg-blue-50 rounded-xl" },
-                                    h('p', { className: "text-lg font-black text-blue-600" }, last30Training.length),
-                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Training")
+                        // Training Load (Last 30 Days) - Compact
+                        h('div', { className: "bg-white p-3 rounded-xl border shadow-sm" },
+                            h('h4', { className: "text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2" }, "Last 30 Days Load"),
+                            h('div', { className: "grid grid-cols-3 gap-1.5" },
+                                h('div', { className: "text-center p-1.5 bg-blue-50 rounded-lg" },
+                                    h('p', { className: "text-sm font-black text-blue-600" }, last30Training.length),
+                                    h('p', { className: "text-[7px] font-bold text-slate-400 uppercase" }, "Training")
                                 ),
-                                h('div', { className: "text-center p-2 bg-orange-50 rounded-xl" },
-                                    h('p', { className: "text-lg font-black text-orange-600" }, last30HighIntensity.length),
-                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "High Int.")
+                                h('div', { className: "text-center p-1.5 bg-orange-50 rounded-lg" },
+                                    h('p', { className: "text-sm font-black text-orange-600" }, last30HighIntensity.length),
+                                    h('p', { className: "text-[7px] font-bold text-slate-400 uppercase" }, "High Int.")
                                 ),
-                                h('div', { className: "text-center p-2 bg-purple-50 rounded-xl" },
-                                    h('p', { className: "text-lg font-black text-purple-600" }, totalRestDays),
-                                    h('p', { className: "text-[8px] font-bold text-slate-400 uppercase" }, "Rest")
+                                h('div', { className: "text-center p-1.5 bg-purple-50 rounded-lg" },
+                                    h('p', { className: "text-sm font-black text-purple-600" }, totalRestDays),
+                                    h('p', { className: "text-[7px] font-bold text-slate-400 uppercase" }, "Rest")
                                 )
                             ),
                             // Consecutive training warning
-                            consecutiveTraining > 0 && h('div', { className: "mt-3 pt-3 border-t border-slate-100" },
+                            consecutiveTraining > 0 && h('div', { className: "mt-2 pt-2 border-t border-slate-100" },
                                 h('div', { className: "flex items-center gap-2" },
-                                    h(Icon, { name: consecutiveTraining >= 5 ? "AlertTriangle" : "Activity", className: "w-4 h-4 " + (consecutiveTraining >= 5 ? 'text-rose-500' : 'text-slate-400') }),
-                                    h('span', { className: "text-[10px] " + (consecutiveTraining >= 5 ? 'text-rose-500 font-bold' : 'text-slate-500') },
+                                    h(Icon, { name: consecutiveTraining >= 5 ? "AlertTriangle" : "Activity", className: "w-3.5 h-3.5 " + (consecutiveTraining >= 5 ? 'text-rose-500' : 'text-slate-400') }),
+                                    h('span', { className: "text-[9px] " + (consecutiveTraining >= 5 ? 'text-rose-500 font-bold' : 'text-slate-500') },
                                         consecutiveTraining + " consecutive training day" + (consecutiveTraining > 1 ? 's' : '')
                                     )
                                 )
                             )
                         ),
 
-                        // Suggestions & Tips
-                        h('div', { className: "space-y-2" },
-                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Recovery Insights"),
+                        // Suggestions & Tips - Compact
+                        h('div', { className: "space-y-1.5" },
+                            h('h4', { className: "text-[9px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Recovery Insights"),
                             suggestions.map(function(s, i) {
                                 var bgColor = s.type === 'danger' ? 'bg-rose-50' : s.type === 'warning' ? 'bg-amber-50' : s.type === 'success' ? 'bg-emerald-50' : 'bg-blue-50';
                                 var textColor = s.type === 'danger' ? 'text-rose-600' : s.type === 'warning' ? 'text-amber-600' : s.type === 'success' ? 'text-emerald-600' : 'text-blue-600';
-                                return h('div', { key: i, className: "flex items-start gap-3 p-3 rounded-xl " + bgColor },
-                                    h(Icon, { name: s.icon, className: "w-4 h-4 mt-0.5 flex-shrink-0 " + textColor }),
-                                    h('p', { className: "text-[11px] " + textColor }, s.text)
+                                return h('div', { key: i, className: "flex items-start gap-2 p-2 rounded-lg " + bgColor },
+                                    h(Icon, { name: s.icon, className: "w-3.5 h-3.5 mt-0.5 flex-shrink-0 " + textColor }),
+                                    h('p', { className: "text-[10px] " + textColor }, s.text)
                                 );
                             })
-                        ),
-
-                        // Injury Prevention Tips
-                        h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
-                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3" }, "Injury Prevention Tips"),
-                            h('div', { className: "space-y-2" },
-                                h('div', { className: "flex items-start gap-2" },
-                                    h('span', { className: "text-sm" }, "💧"),
-                                    h('p', { className: "text-[10px] text-slate-600" }, "Stay hydrated - drink water before, during, and after training")
-                                ),
-                                h('div', { className: "flex items-start gap-2" },
-                                    h('span', { className: "text-sm" }, "🔥"),
-                                    h('p', { className: "text-[10px] text-slate-600" }, "Always warm up for 10-15 mins before intense sessions")
-                                ),
-                                h('div', { className: "flex items-start gap-2" },
-                                    h('span', { className: "text-sm" }, "🧊"),
-                                    h('p', { className: "text-[10px] text-slate-600" }, "Cool down and stretch after training to prevent muscle tightness")
-                                ),
-                                h('div', { className: "flex items-start gap-2" },
-                                    h('span', { className: "text-sm" }, "😴"),
-                                    h('p', { className: "text-[10px] text-slate-600" }, "Aim for 8+ hours of sleep for optimal muscle recovery")
-                                ),
-                                h('div', { className: "flex items-start gap-2" },
-                                    h('span', { className: "text-sm" }, "🥗"),
-                                    h('p', { className: "text-[10px] text-slate-600" }, "Eat protein within 30 mins post-workout for muscle repair")
-                                )
-                            )
                         )
                     );
                 }
@@ -1134,6 +1123,17 @@
                                 h('input', {
                                     type: "file", ref: fileInputRef, onChange: importData, accept: ".json", className: "hidden"
                                 }),
+                                h('button', {
+                                    onClick: function() { setShowBugReport(true); },
+                                    className: "w-full flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors"
+                                },
+                                    h('div', { className: "w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center" }, h(Icon, { name: "Bug" })),
+                                    h('div', { className: "text-left flex-1" },
+                                        h('p', { className: "font-bold text-xs" }, "Report Bug"),
+                                        h('p', { className: "text-[9px] text-slate-400" }, "Help us improve the app")
+                                    ),
+                                    h(Icon, { name: "ChevronRight", className: "text-slate-300 w-3 h-3" })
+                                ),
                                 h('div', { className: "pt-2 px-1" },
                                     h('button', {
                                         onClick: resetAllData,
@@ -1266,7 +1266,70 @@
                         message: confirmDialog.message,
                         onConfirm: confirmDialog.onConfirm,
                         onCancel: confirmDialog.onCancel
-                    })
+                    }),
+                    showBugReport && h('div', { className: "fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] z-[200] flex items-center justify-center p-4" },
+                        h('div', { className: "bg-white w-full max-w-sm rounded-2xl p-5 space-y-4 animate-in shadow-xl" },
+                            h('div', { className: "flex items-center justify-between" },
+                                h('div', { className: "flex items-center gap-3" },
+                                    h('div', { className: "w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center" },
+                                        h(Icon, { name: "Bug", className: "w-5 h-5 text-amber-600" })
+                                    ),
+                                    h('h3', { className: "text-sm font-bold text-slate-800" }, "Report a Bug")
+                                ),
+                                h('button', { onClick: function() { setShowBugReport(false); }, className: "p-1 text-slate-300 hover:text-slate-500" },
+                                    h(Icon, { name: "X", className: "w-5 h-5" })
+                                )
+                            ),
+                            h('p', { className: "text-xs text-slate-500" }, "Help us improve the app by reporting any issues you encounter."),
+                            h('div', { className: "space-y-3" },
+                                h('div', { className: "flex items-start gap-3 p-3 bg-slate-50 rounded-xl" },
+                                    h('div', { className: "w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold" }, "1"),
+                                    h('div', null,
+                                        h('p', { className: "text-xs font-bold text-slate-700" }, "Screenshot the issue"),
+                                        h('p', { className: "text-[10px] text-slate-400" }, "Capture what went wrong")
+                                    )
+                                ),
+                                h('div', { className: "flex items-start gap-3 p-3 bg-slate-50 rounded-xl" },
+                                    h('div', { className: "w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold" }, "2"),
+                                    h('div', null,
+                                        h('p', { className: "text-xs font-bold text-slate-700" }, "Describe the issue"),
+                                        h('p', { className: "text-[10px] text-slate-400" }, "Explain what happened and what you expected")
+                                    )
+                                ),
+                                h('div', { className: "flex items-start gap-3 p-3 bg-slate-50 rounded-xl" },
+                                    h('div', { className: "w-6 h-6 rounded-full bg-blue-900 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold" }, "3"),
+                                    h('div', null,
+                                        h('p', { className: "text-xs font-bold text-slate-700" }, "Send an email with the details"),
+                                        h('p', { className: "text-[10px] text-slate-400" }, "Include screenshot and description")
+                                    )
+                                )
+                            ),
+                            h('div', { className: "bg-blue-50 p-3 rounded-xl" },
+                                h('p', { className: "text-[10px] font-bold text-blue-900 uppercase tracking-wider mb-1" }, "Email to:"),
+                                h('a', {
+                                    href: "mailto:alfie_yang@moe.edu.sg?subject=STC%20Hockey%20App%20Bug%20Report",
+                                    className: "text-sm font-bold text-blue-600 underline"
+                                }, "alfie_yang@moe.edu.sg")
+                            ),
+                            h('p', { className: "text-center text-[10px] text-slate-400" }, "Thank you for helping us improve!"),
+                            h('button', {
+                                onClick: function() { setShowBugReport(false); },
+                                className: "w-full p-3 rounded-xl font-bold text-xs uppercase text-white bg-blue-900 hover:bg-blue-800 transition-colors"
+                            }, "Got it")
+                        )
+                    ),
+                    showSplash && h('div', {
+                        className: "fixed inset-0 z-[300] flex flex-col items-center justify-center bg-slate-50",
+                        style: { animation: showSplash ? 'none' : 'fadeOut 0.3s ease-out forwards' }
+                    },
+                        h('img', {
+                            src: LOGO_URL,
+                            className: "w-32 h-auto object-contain mb-4",
+                            alt: "CHIJ STC Logo"
+                        }),
+                        h('h1', { className: "text-xl font-extrabold text-blue-900 tracking-tight text-center" }, "CHIJ STC HOCKEY"),
+                        h('p', { className: "text-[10px] text-slate-400 mt-2 uppercase tracking-widest" }, "Loading...")
+                    )
                 );
             }
 
