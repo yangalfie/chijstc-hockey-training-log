@@ -593,13 +593,15 @@
                                 })
                             )
                         ),
-                        h('div', { className: "space-y-2" },
-                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase px-1" }, "Activity for " + selectedDate),
-                            logs.filter(function(l) { return l.date === selectedDate; }).map(function(log) {
-                                return h(LogItem, { key: log.id, log: log, onDelete: deleteLog });
-                            }),
-                            logs.filter(function(l) { return l.date === selectedDate; }).length === 0 &&
-                                h('p', { className: "text-center py-4 text-slate-300 text-[11px] italic" }, "Rest day")
+                        h('div', { className: "flex flex-col" },
+                            h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase px-1 mb-2" }, "Activity for " + selectedDate),
+                            h('div', { className: "space-y-2 overflow-y-auto max-h-40", style: { WebkitOverflowScrolling: 'touch' } },
+                                logs.filter(function(l) { return l.date === selectedDate; }).map(function(log) {
+                                    return h(LogItem, { key: log.id, log: log, onDelete: deleteLog });
+                                }),
+                                logs.filter(function(l) { return l.date === selectedDate; }).length === 0 &&
+                                    h('p', { className: "text-center py-4 text-slate-300 text-[11px] italic" }, "Rest day")
+                            )
                         )
                     );
                 }
@@ -841,13 +843,15 @@
                             )
                         ),
                         // Monthly History
-                        h('div', { className: "space-y-3" },
-                            h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1" }, "Weekly Goal History"),
-                            weeksByMonth.length > 0
-                                ? weeksByMonth.map(function(monthData) {
-                                    return renderMonthGroup(monthData);
-                                })
-                                : h('p', { className: "text-center py-4 text-slate-300 text-xs italic" }, "No weekly history yet")
+                        h('div', { className: "flex flex-col" },
+                            h('h3', { className: "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-3" }, "Weekly Goal History"),
+                            h('div', { className: "space-y-3 overflow-y-auto max-h-52", style: { WebkitOverflowScrolling: 'touch' } },
+                                weeksByMonth.length > 0
+                                    ? weeksByMonth.map(function(monthData) {
+                                        return renderMonthGroup(monthData);
+                                    })
+                                    : h('p', { className: "text-center py-4 text-slate-300 text-xs italic" }, "No weekly history yet")
+                            )
                         )
                     );
                 }
