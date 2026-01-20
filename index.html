@@ -95,10 +95,21 @@
             ];
 
             function getWeekIdentifier(date) {
-                var d = new Date(date);
+                var d;
+                // Parse date string in local time to avoid timezone issues
+                if (typeof date === 'string' && date.indexOf('-') > -1) {
+                    var parts = date.split('-');
+                    d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                } else {
+                    d = new Date(date);
+                }
                 var day = d.getDay();
                 var diff = d.getDate() - day + (day === 0 ? -6 : 1);
-                return new Date(d.setDate(diff)).toISOString().split('T')[0];
+                var weekStart = new Date(d.getFullYear(), d.getMonth(), diff);
+                var year = weekStart.getFullYear();
+                var month = String(weekStart.getMonth() + 1).padStart(2, '0');
+                var dayOfMonth = String(weekStart.getDate()).padStart(2, '0');
+                return year + '-' + month + '-' + dayOfMonth;
             }
 
             function Icon(props) {
@@ -421,16 +432,25 @@
                     };
                 }, [logs, profile.weeklyGoal]);
 
+                // Helper to parse date string in local time
+                function parseLocalDate(dateStr) {
+                    if (typeof dateStr === 'string' && dateStr.indexOf('-') > -1) {
+                        var parts = dateStr.split('-');
+                        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    }
+                    return new Date(dateStr);
+                }
+
                 // Helper to get week end date (Sunday)
                 function getWeekEnd(weekStart) {
-                    var end = new Date(weekStart);
+                    var end = parseLocalDate(weekStart);
                     end.setDate(end.getDate() + 6);
                     return end;
                 }
 
                 // Helper to format date range
                 function formatWeekRange(weekStart) {
-                    var start = new Date(weekStart);
+                    var start = parseLocalDate(weekStart);
                     var end = getWeekEnd(weekStart);
                     var startDay = start.getDate();
                     var endDay = end.getDate();
@@ -459,7 +479,7 @@
                         var weekEnd = getWeekEnd(weekId);
 
                         // Stop if week is in the future
-                        if (new Date(weekId) > today) break;
+                        if (parseLocalDate(weekId) > today) break;
 
                         // Calculate minutes for this week
                         var mins = logs.filter(function(l) {
@@ -470,7 +490,7 @@
                         var isCurrent = weekId === currentWeekId;
 
                         // Get the month this week primarily belongs to (use week start)
-                        var weekStartDate = new Date(weekId);
+                        var weekStartDate = parseLocalDate(weekId);
                         var monthKey = weekStartDate.getFullYear() + '-' + String(weekStartDate.getMonth() + 1).padStart(2, '0');
                         var monthName = weekStartDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
