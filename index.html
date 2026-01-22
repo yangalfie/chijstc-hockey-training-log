@@ -32,14 +32,20 @@
             padding-left: env(safe-area-inset-left);
             padding-right: env(safe-area-inset-right);
         }
-        #root { height: 100%; overflow: hidden; }
+        #root { height: 100%; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         input[type="range"] { -webkit-appearance: none; background: transparent; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #1e3a8a; cursor: pointer; margin-top: -6px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
         input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #e2e8f0; border-radius: 2px; }
         .animate-in { animation: fadeIn 0.2s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .main-content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .main-content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; min-height: 0; }
+
+        /* Font size scaling using zoom */
+        .font-scale-small .main-content { zoom: 0.9; -moz-transform: scale(0.9); -moz-transform-origin: top center; }
+        .font-scale-normal .main-content { zoom: 1; }
+        .font-scale-large .main-content { zoom: 1.1; -moz-transform: scale(1.1); -moz-transform-origin: top center; }
+        .font-scale-xlarge .main-content { zoom: 1.2; -moz-transform: scale(1.2); -moz-transform-origin: top center; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -78,6 +84,14 @@
             var LOGO_URL = "https://www.chijsttheresasconvent.moe.edu.sg/images/logo.png";
             var STORAGE_KEY_LOGS = "stc_hockey_logs_vfinal";
             var STORAGE_KEY_PROFILE = "stc_hockey_profile_vfinal";
+            var STORAGE_KEY_FONTSIZE = "stc_hockey_fontsize";
+
+            var FONT_SIZES = [
+                { id: 'small', name: 'Small', scale: 0.85 },
+                { id: 'normal', name: 'Normal', scale: 1 },
+                { id: 'large', name: 'Large', scale: 1.15 },
+                { id: 'xlarge', name: 'Extra Large', scale: 1.3 }
+            ];
 
             var EXERCISE_TYPES = [
                 { id: 'match', name: 'Match', icon: '🏑' },
@@ -279,6 +293,19 @@
                 var splashState = useState(true);
                 var showSplash = splashState[0];
                 var setShowSplash = splashState[1];
+
+                var fontSizeState = useState(function() {
+                    return safeStorage.getItem(STORAGE_KEY_FONTSIZE) || 'normal';
+                });
+                var fontSize = fontSizeState[0];
+                var setFontSize = fontSizeState[1];
+
+                // Get current font scale
+                var fontScale = (FONT_SIZES.find(function(f) { return f.id === fontSize; }) || FONT_SIZES[1]).scale;
+
+                useEffect(function() {
+                    safeStorage.setItem(STORAGE_KEY_FONTSIZE, fontSize);
+                }, [fontSize]);
 
                 useEffect(function() {
                     // Hide splash after 1.5 seconds
@@ -1060,7 +1087,7 @@
                 }
 
                 function renderProfile() {
-                    return h('div', { className: "space-y-5 animate-in pb-4" },
+                    return h('div', { className: "space-y-5 animate-in pb-20" },
                         h('section', { className: "space-y-3" },
                             h('h2', { className: "text-sm font-black px-1 uppercase tracking-wider text-slate-500" }, "Athlete Profile"),
                             h('div', { className: "bg-white p-5 rounded-2xl border space-y-4 shadow-sm" },
@@ -1105,6 +1132,34 @@
                                         onChange: function(e) { setProfile(Object.assign({}, profile, { weeklyGoal: parseInt(e.target.value) })); },
                                         className: "w-full"
                                     })
+                                )
+                            )
+                        ),
+                        h('section', { className: "space-y-3" },
+                            h('h2', { className: "text-sm font-black px-1 uppercase tracking-wider text-slate-500" }, "Display"),
+                            h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm" },
+                                h('div', { className: "space-y-2" },
+                                    h('div', { className: "flex justify-between items-center" },
+                                        h('label', { className: "text-[9px] font-bold text-slate-400 uppercase" }, "Font Size"),
+                                        h('span', { className: "text-xs font-black text-blue-900" },
+                                            (FONT_SIZES.find(function(f) { return f.id === fontSize; }) || FONT_SIZES[1]).name
+                                        )
+                                    ),
+                                    h('div', { className: "grid grid-cols-4 gap-2" },
+                                        FONT_SIZES.map(function(size) {
+                                            return h('button', {
+                                                key: size.id,
+                                                onClick: function() { setFontSize(size.id); },
+                                                className: "p-2 rounded-xl text-center transition-all " +
+                                                    (fontSize === size.id
+                                                        ? 'bg-blue-900 text-white'
+                                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100')
+                                            },
+                                                h('span', { className: "text-[10px] font-bold", style: { fontSize: (10 * size.scale) + 'px' } }, "Aa"),
+                                                h('p', { className: "text-[8px] mt-0.5 opacity-70" }, size.name)
+                                            );
+                                        })
+                                    )
                                 )
                             )
                         ),
@@ -1234,7 +1289,7 @@
                     );
                 }
 
-                return h('div', { className: "min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto relative overflow-x-hidden" },
+                return h('div', { className: "min-h-screen h-full bg-slate-50 flex flex-col max-w-md mx-auto relative font-scale-" + fontSize },
                     h('header', { className: "bg-white border-b px-4 py-3 sticky top-0 z-50 flex items-center justify-between flex-shrink-0" },
                         h('div', { className: "flex items-center gap-2" },
                             h('img', { src: LOGO_URL, className: "w-6 h-6 object-contain" }),
@@ -1255,7 +1310,7 @@
                             h('button', { onClick: handleInstallClick, className: "bg-white text-blue-900 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase" }, "Install")
                         )
                     ),
-                    h('main', { className: "main-content flex-1 p-4 space-y-5 pb-28" },
+                    h('main', { className: "main-content flex-1 p-4 space-y-5 pb-36" },
                         activeTab === 'dashboard' && renderDashboard(),
                         activeTab === 'history' && renderHistory(),
                         activeTab === 'analysis' && renderAnalysis(),
