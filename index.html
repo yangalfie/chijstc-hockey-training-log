@@ -85,6 +85,74 @@
             var STORAGE_KEY_LOGS = "stc_hockey_logs_vfinal";
             var STORAGE_KEY_PROFILE = "stc_hockey_profile_vfinal";
             var STORAGE_KEY_FONTSIZE = "stc_hockey_fontsize";
+            var STORAGE_KEY_CALENDAR_URL = "stc_hockey_calendar_url";
+
+            // ICS Parser function
+            function parseICS(icsText) {
+                var events = [];
+                var lines = icsText.replace(/\r\n /g, '').replace(/\r/g, '\n').split('\n');
+                var currentEvent = null;
+
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+
+                    if (line === 'BEGIN:VEVENT') {
+                        currentEvent = {};
+                    } else if (line === 'END:VEVENT' && currentEvent) {
+                        if (currentEvent.start) {
+                            events.push(currentEvent);
+                        }
+                        currentEvent = null;
+                    } else if (currentEvent) {
+                        var colonIndex = line.indexOf(':');
+                        if (colonIndex > -1) {
+                            var key = line.substring(0, colonIndex);
+                            var value = line.substring(colonIndex + 1);
+
+                            // Handle properties with parameters (e.g., DTSTART;VALUE=DATE:20250120)
+                            var keyParts = key.split(';');
+                            var mainKey = keyParts[0];
+
+                            if (mainKey === 'SUMMARY') {
+                                currentEvent.title = value.replace(/\\,/g, ',').replace(/\\n/g, ' ');
+                            } else if (mainKey === 'DTSTART') {
+                                currentEvent.start = parseICSDate(value);
+                            } else if (mainKey === 'DTEND') {
+                                currentEvent.end = parseICSDate(value);
+                            } else if (mainKey === 'DESCRIPTION') {
+                                currentEvent.description = value.replace(/\\,/g, ',').replace(/\\n/g, '\n');
+                            } else if (mainKey === 'LOCATION') {
+                                currentEvent.location = value.replace(/\\,/g, ',');
+                            }
+                        }
+                    }
+                }
+                return events;
+            }
+
+            function parseICSDate(dateStr) {
+                // Handle formats: 20250120T143000Z, 20250120T143000, 20250120
+                dateStr = dateStr.replace(/[^0-9TZ]/g, '');
+
+                if (dateStr.length >= 8) {
+                    var year = parseInt(dateStr.substring(0, 4));
+                    var month = parseInt(dateStr.substring(4, 6)) - 1;
+                    var day = parseInt(dateStr.substring(6, 8));
+
+                    if (dateStr.length >= 15) {
+                        var hour = parseInt(dateStr.substring(9, 11));
+                        var minute = parseInt(dateStr.substring(11, 13));
+                        var second = parseInt(dateStr.substring(13, 15));
+
+                        if (dateStr.indexOf('Z') > -1) {
+                            return new Date(Date.UTC(year, month, day, hour, minute, second));
+                        }
+                        return new Date(year, month, day, hour, minute, second);
+                    }
+                    return new Date(year, month, day);
+                }
+                return null;
+            }
 
             var FONT_SIZES = [
                 { id: 'small', name: 'Small', scale: 0.85 },
@@ -261,6 +329,7 @@
                 var setNewLog = newLogState[1];
 
                 var fileInputRef = useRef(null);
+                var icsFileInputRef = useRef(null);
 
                 var confirmState = useState(null);
                 var confirmDialog = confirmState[0];
@@ -300,12 +369,62 @@
                 var fontSize = fontSizeState[0];
                 var setFontSize = fontSizeState[1];
 
+                var calendarUrlState = useState(function() {
+                    return safeStorage.getItem(STORAGE_KEY_CALENDAR_URL) || '';
+                });
+                var calendarUrl = calendarUrlState[0];
+                var setCalendarUrl = calendarUrlState[1];
+
+                var calendarEventsState = useState([]);
+                var calendarEvents = calendarEventsState[0];
+                var setCalendarEvents = calendarEventsState[1];
+
+                var calendarLoadingState = useState(false);
+                var calendarLoading = calendarLoadingState[0];
+                var setCalendarLoading = calendarLoadingState[1];
+
+                var calendarErrorState = useState(null);
+                var calendarError = calendarErrorState[0];
+                var setCalendarError = calendarErrorState[1];
+
                 // Get current font scale
                 var fontScale = (FONT_SIZES.find(function(f) { return f.id === fontSize; }) || FONT_SIZES[1]).scale;
 
                 useEffect(function() {
                     safeStorage.setItem(STORAGE_KEY_FONTSIZE, fontSize);
                 }, [fontSize]);
+
+                useEffect(function() {
+                    safeStorage.setItem(STORAGE_KEY_CALENDAR_URL, calendarUrl);
+                }, [calendarUrl]);
+
+                // Fetch calendar events when URL changes
+                useEffect(function() {
+                    if (!calendarUrl) {
+                        setCalendarEvents([]);
+                        return;
+                    }
+
+                    setCalendarLoading(true);
+                    setCalendarError(null);
+
+                    fetch(calendarUrl)
+                        .then(function(response) {
+                            if (!response.ok) {
+                                throw new Error('Failed to fetch calendar');
+                            }
+                            return response.text();
+                        })
+                        .then(function(icsText) {
+                            var events = parseICS(icsText);
+                            setCalendarEvents(events);
+                            setCalendarLoading(false);
+                        })
+                        .catch(function(err) {
+                            setCalendarError(err.message || 'Failed to load calendar');
+                            setCalendarLoading(false);
+                        });
+                }, [calendarUrl]);
 
                 useEffect(function() {
                     // Hide splash after 1.5 seconds
@@ -411,6 +530,37 @@
                         }
                     };
                     reader.readAsText(file);
+                }
+
+                function importICSFile(event) {
+                    var file = event.target.files[0];
+                    if (!file) return;
+                    setCalendarLoading(true);
+                    setCalendarError(null);
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            var icsText = e.target.result;
+                            var events = parseICS(icsText);
+                            setCalendarEvents(events);
+                            setCalendarLoading(false);
+                            if (events.length > 0) {
+                                notify(events.length + ' events loaded!');
+                            } else {
+                                setCalendarError('No events found in file');
+                            }
+                        } catch (err) {
+                            setCalendarError('Error reading ICS file');
+                            setCalendarLoading(false);
+                        }
+                    };
+                    reader.onerror = function() {
+                        setCalendarError('Error reading file');
+                        setCalendarLoading(false);
+                    };
+                    reader.readAsText(file);
+                    // Clear the input so the same file can be selected again
+                    event.target.value = '';
                 }
 
                 function resetAllData() {
@@ -650,6 +800,14 @@
                                     var day = i + 1;
                                     var dStr = viewDate.getFullYear() + '-' + String(viewDate.getMonth() + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
                                     var hasLog = logs.some(function(l) { return l.date === dStr; });
+                                    var dayDate = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
+                                    var hasCalendarEvent = calendarEvents.some(function(evt) {
+                                        if (!evt.start) return false;
+                                        var evtDate = new Date(evt.start);
+                                        return evtDate.getFullYear() === dayDate.getFullYear() &&
+                                               evtDate.getMonth() === dayDate.getMonth() &&
+                                               evtDate.getDate() === dayDate.getDate();
+                                    });
                                     var isSelected = selectedDate === dStr;
                                     var isToday = dStr === new Date().toISOString().split('T')[0];
                                     return h('button', {
@@ -659,19 +817,84 @@
                                             (isSelected ? 'bg-blue-900 text-white' : isToday ? 'text-blue-600 bg-blue-50' : 'text-slate-700 hover:bg-slate-50')
                                     },
                                         day,
-                                        hasLog && h('div', { className: "w-1 h-1 rounded-full absolute bottom-1 " + (isSelected ? 'bg-white' : 'bg-blue-400') })
+                                        (hasLog || hasCalendarEvent) && h('div', { className: "flex gap-0.5 absolute bottom-1" },
+                                            hasLog && h('div', { className: "w-1 h-1 rounded-full " + (isSelected ? 'bg-white' : 'bg-blue-400') }),
+                                            hasCalendarEvent && h('div', { className: "w-1 h-1 rounded-full " + (isSelected ? 'bg-amber-300' : 'bg-amber-500') })
+                                        )
                                     );
                                 })
+                            ),
+                            calendarEvents.length > 0 && h('div', { className: "flex justify-center gap-4 mt-2 pt-2 border-t border-slate-100" },
+                                h('div', { className: "flex items-center gap-1" },
+                                    h('div', { className: "w-2 h-2 rounded-full bg-blue-400" }),
+                                    h('span', { className: "text-[8px] text-slate-400" }, "Training")
+                                ),
+                                h('div', { className: "flex items-center gap-1" },
+                                    h('div', { className: "w-2 h-2 rounded-full bg-amber-500" }),
+                                    h('span', { className: "text-[8px] text-slate-400" }, "Google Calendar")
+                                )
                             )
                         ),
                         h('div', { className: "flex flex-col" },
                             h('h4', { className: "text-[10px] font-bold text-slate-400 uppercase px-1 mb-2" }, "Activity for " + selectedDate),
-                            h('div', { className: "space-y-2 overflow-y-auto max-h-40", style: { WebkitOverflowScrolling: 'touch' } },
+                            h('div', { className: "space-y-2 overflow-y-auto max-h-48", style: { WebkitOverflowScrolling: 'touch' } },
+                                // Display logged activities
                                 logs.filter(function(l) { return l.date === selectedDate; }).map(function(log) {
                                     return h(LogItem, { key: log.id, log: log, onDelete: deleteLog });
                                 }),
-                                logs.filter(function(l) { return l.date === selectedDate; }).length === 0 &&
-                                    h('p', { className: "text-center py-4 text-slate-300 text-[11px] italic" }, "Rest day")
+                                // Display Google Calendar events
+                                (function() {
+                                    var selectedDateObj = parseLocalDate(selectedDate);
+                                    return calendarEvents.filter(function(evt) {
+                                        if (!evt.start) return false;
+                                        var evtDate = new Date(evt.start);
+                                        return evtDate.getFullYear() === selectedDateObj.getFullYear() &&
+                                               evtDate.getMonth() === selectedDateObj.getMonth() &&
+                                               evtDate.getDate() === selectedDateObj.getDate();
+                                    }).map(function(evt, idx) {
+                                        var timeStr = '';
+                                        if (evt.start) {
+                                            var startDate = new Date(evt.start);
+                                            if (startDate.getHours() !== 0 || startDate.getMinutes() !== 0) {
+                                                timeStr = startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                            }
+                                        }
+                                        return h('div', {
+                                            key: 'gcal-' + idx,
+                                            className: "bg-amber-50 border border-amber-200 rounded-xl p-3"
+                                        },
+                                            h('div', { className: "flex items-center gap-2" },
+                                                h('div', { className: "w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center" },
+                                                    h(Icon, { name: "Calendar", className: "w-3.5 h-3.5" })
+                                                ),
+                                                h('div', { className: "flex-1 min-w-0" },
+                                                    h('p', { className: "text-xs font-bold text-amber-900 truncate" }, evt.title || 'Untitled Event'),
+                                                    h('div', { className: "flex items-center gap-2" },
+                                                        timeStr && h('span', { className: "text-[10px] text-amber-600" }, timeStr),
+                                                        evt.location && h('span', { className: "text-[10px] text-amber-500 truncate" }, evt.location)
+                                                    )
+                                                ),
+                                                h('span', { className: "text-[8px] font-bold text-amber-500 uppercase bg-amber-100 px-1.5 py-0.5 rounded" }, "Google")
+                                            )
+                                        );
+                                    });
+                                })(),
+                                // Show "Rest day" only if no logs AND no calendar events
+                                (function() {
+                                    var selectedDateObj = parseLocalDate(selectedDate);
+                                    var hasLogs = logs.filter(function(l) { return l.date === selectedDate; }).length > 0;
+                                    var hasEvents = calendarEvents.filter(function(evt) {
+                                        if (!evt.start) return false;
+                                        var evtDate = new Date(evt.start);
+                                        return evtDate.getFullYear() === selectedDateObj.getFullYear() &&
+                                               evtDate.getMonth() === selectedDateObj.getMonth() &&
+                                               evtDate.getDate() === selectedDateObj.getDate();
+                                    }).length > 0;
+                                    if (!hasLogs && !hasEvents) {
+                                        return h('p', { className: "text-center py-4 text-slate-300 text-[11px] italic" }, "Rest day");
+                                    }
+                                    return null;
+                                })()
                             )
                         )
                     );
@@ -1185,6 +1408,67 @@
                                         })
                                     )
                                 )
+                            )
+                        ),
+                        h('section', { className: "space-y-3" },
+                            h('h2', { className: "text-sm font-black px-1 uppercase tracking-wider text-slate-500" }, "Google Calendar"),
+                            h('div', { className: "bg-white p-4 rounded-2xl border shadow-sm space-y-4" },
+                                h('div', { className: "space-y-2" },
+                                    h('p', { className: "text-[10px] font-bold text-slate-600 px-1" }, "Upload ICS File (Recommended)"),
+                                    h('button', {
+                                        onClick: function() { icsFileInputRef.current.click(); },
+                                        className: "w-full flex items-center gap-3 p-3 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors border border-amber-200"
+                                    },
+                                        h('div', { className: "w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center" },
+                                            h(Icon, { name: "Upload", className: "w-4 h-4" })
+                                        ),
+                                        h('div', { className: "text-left flex-1" },
+                                            h('p', { className: "font-bold text-xs text-amber-900" }, "Upload .ics File"),
+                                            h('p', { className: "text-[9px] text-amber-600" }, "Export from Google Calendar and upload here")
+                                        ),
+                                        h(Icon, { name: "ChevronRight", className: "text-amber-400 w-3 h-3" })
+                                    ),
+                                    h('input', {
+                                        type: "file",
+                                        ref: icsFileInputRef,
+                                        onChange: importICSFile,
+                                        accept: ".ics,.ical",
+                                        className: "hidden"
+                                    }),
+                                    h('p', { className: "text-[9px] text-slate-400 px-1" },
+                                        "In Google Calendar: Settings → Select calendar → Export calendar → Download .ics file"
+                                    )
+                                ),
+                                h('div', { className: "border-t border-slate-100 pt-3 space-y-2" },
+                                    h('p', { className: "text-[10px] font-bold text-slate-400 px-1" }, "Or paste URL (may not work due to CORS)"),
+                                    h('input', {
+                                        type: "url",
+                                        placeholder: "https://calendar.google.com/calendar/ical/.../basic.ics",
+                                        className: "w-full p-3 bg-slate-50 rounded-xl text-xs font-medium border-none ring-1 ring-slate-100 focus:ring-blue-900",
+                                        value: calendarUrl,
+                                        onChange: function(e) { setCalendarUrl(e.target.value); }
+                                    })
+                                ),
+                                calendarLoading && h('div', { className: "flex items-center gap-2 text-blue-600 px-1" },
+                                    h(Icon, { name: "Loader2", className: "w-3 h-3 animate-spin" }),
+                                    h('span', { className: "text-[10px] font-medium" }, "Loading calendar...")
+                                ),
+                                calendarError && h('div', { className: "flex items-center gap-2 text-rose-500 px-1" },
+                                    h(Icon, { name: "AlertCircle", className: "w-3 h-3" }),
+                                    h('span', { className: "text-[10px] font-medium" }, calendarError)
+                                ),
+                                !calendarLoading && !calendarError && calendarEvents.length > 0 && h('div', { className: "flex items-center gap-2 text-emerald-600 px-1" },
+                                    h(Icon, { name: "CheckCircle", className: "w-3 h-3" }),
+                                    h('span', { className: "text-[10px] font-medium" }, calendarEvents.length + " events loaded")
+                                ),
+                                calendarEvents.length > 0 && h('button', {
+                                    onClick: function() {
+                                        setCalendarEvents([]);
+                                        setCalendarUrl('');
+                                        notify('Calendar cleared');
+                                    },
+                                    className: "w-full p-2 text-rose-500 rounded-lg font-bold text-[10px] uppercase hover:bg-rose-50 transition-colors border border-rose-100"
+                                }, "Clear Calendar")
                             )
                         ),
                         h('section', { className: "space-y-3" },
